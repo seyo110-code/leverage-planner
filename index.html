@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>레버리지 포지션 플래너 — 손실 한도로 진입금 역산</title>
+  <meta name="description" content="레버리지·손절폭·허용 손실을 넣으면 계좌를 지키는 진입금 비율을 역산합니다. 켈리 공식 기반." />
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #121722;
+      --panel2: #171e2c;
+      --line: #232c3f;
+      --ink: #e8edf5;
+      --muted: #8b95a8;
+      --teal: #2dd4bf;
+      --red: #f87171;
+      --gold: #fbbf24;
+      --indigo: #818cf8;
+      --grid: rgba(139, 149, 168, .14);
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(60rem 30rem at 85% -10%, rgba(45, 212, 191, .09), transparent),
+        radial-gradient(50rem 26rem at -10% 0%, rgba(129, 140, 248, .08), transparent),
+        var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      min-height: 100vh;
+      font-variant-numeric: tabular-nums;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 16px 64px; }
+
+    header { margin-bottom: 22px; }
+    .brand {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--teal);
+    }
+    .brand::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--teal); box-shadow: 0 0 12px var(--teal); }
+    h1 {
+      margin: 10px 0 8px;
+      font-size: clamp(26px, 5.4vw, 44px);
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+      font-weight: 900;
+    }
+    h1 b { background: linear-gradient(90deg, var(--teal), var(--indigo)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lead { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; max-width: 620px; }
+
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+    .card {
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 18px;
+    }
+    .card h2 { margin: 0 0 14px; font-size: 15px; letter-spacing: -0.02em; }
+
+    .control { margin-bottom: 16px; }
+    .control:last-child { margin-bottom: 0; }
+    label {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+      margin-bottom: 7px; font-size: 13px; font-weight: 700;
+    }
+    label .val { color: var(--teal); font-weight: 800; }
+    .inputRow { display: grid; grid-template-columns: 1fr 84px; gap: 10px; align-items: center; }
+    input[type="range"] { width: 100%; accent-color: var(--teal); height: 28px; }
+    input[type="number"] {
+      width: 84px; padding: 8px 9px; border-radius: 10px;
+      border: 1px solid var(--line); background: #0d1119; color: var(--ink);
+      font-weight: 800; font-size: 14px; text-align: right;
+      font-family: inherit; font-variant-numeric: tabular-nums;
+    }
+    input[type="number"]:focus, input[type="range"]:focus-visible { outline: 2px solid rgba(45,212,191,.5); outline-offset: 1px; }
+    .hint { color: var(--muted); font-size: 11.5px; line-height: 1.5; margin-top: 5px; }
+    .divider { border: 0; border-top: 1px dashed var(--line); margin: 16px 0; }
+
+    /* hero */
+    .hero {
+      position: relative; overflow: hidden;
+      border: 1px solid rgba(45,212,191,.35);
+      background:
+        radial-gradient(30rem 14rem at 90% -20%, rgba(45,212,191,.14), transparent),
+        linear-gradient(180deg, var(--panel2), var(--panel));
+      border-radius: 20px; padding: 20px 20px 18px; margin-bottom: 14px;
+    }
+    .hero.blocked { border-color: rgba(248,113,113,.5); }
+    .hero .tag { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .hero .big {
+      font-size: clamp(40px, 9vw, 64px); font-weight: 900; letter-spacing: -0.04em; line-height: 1.05;
+      margin: 6px 0 2px; color: var(--teal);
+    }
+    .hero.blocked .big { color: var(--red); font-size: clamp(30px, 7vw, 46px); }
+    .hero .amount { font-size: 17px; font-weight: 800; color: var(--ink); }
+    .hero .sub { color: var(--muted); font-size: 12.5px; line-height: 1.55; margin-top: 8px; }
+
+    .warnings { display: grid; gap: 8px; margin-bottom: 14px; }
+    .warn {
+      border-radius: 14px; padding: 11px 14px; font-size: 12.5px; line-height: 1.55; font-weight: 600;
+      border: 1px solid rgba(251,191,36,.4); background: rgba(251,191,36,.08); color: #fde68a;
+    }
+    .warn.critical { border-color: rgba(248,113,113,.5); background: rgba(248,113,113,.09); color: #fecaca; }
+
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+    @media (max-width: 640px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+    .metric { background: #0d1119; border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px; }
+    .metric .name { color: var(--muted); font-size: 11px; margin-bottom: 5px; letter-spacing: .02em; }
+    .metric .value { font-size: 19px; font-weight: 900; letter-spacing: -0.03em; }
+    .metric .extra { color: var(--muted); font-size: 11px; margin-top: 3px; }
+    .good { color: var(--teal); }
+    .bad { color: var(--red); }
+    .gold { color: var(--gold); }
+    .indigo { color: var(--indigo); }
+
+    .chartCard { padding: 16px; margin-bottom: 14px; }
+    .chartCard h3 { margin: 0 0 4px; font-size: 14px; }
+    .chartCard .cap { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 10px; }
+    canvas { width: 100%; height: 320px; display: block; touch-action: pan-y; }
+    @media (max-width: 640px) { canvas { height: 260px; } }
+
+    /* 레버리지 한계 섹션 */
+    .limitSection { margin-top: 34px; }
+    .limitSection > .secHead h2 {
+      margin: 0 0 6px; font-size: clamp(20px, 4vw, 28px); letter-spacing: -0.03em; font-weight: 900;
+    }
+    .limitSection > .secHead h2 b { background: linear-gradient(90deg, var(--gold), var(--red)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .limitSection > .secHead p { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; line-height: 1.6; max-width: 680px; }
+    .limitLayout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 860px) { .limitLayout { grid-template-columns: 1fr; } }
+    select {
+      width: 100%; padding: 10px 12px; border-radius: 12px;
+      border: 1px solid var(--line); background: #0d1119; color: var(--ink);
+      font-weight: 700; font-size: 13px; font-family: inherit;
+    }
+    select:focus { outline: 2px solid rgba(45,212,191,.5); outline-offset: 1px; }
+    .readout {
+      border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px;
+      color: var(--muted); font-size: 12px; line-height: 1.55; margin-bottom: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .readout b { color: var(--teal); }
+
+    details.explain { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 0; overflow: hidden; }
+    details.explain summary {
+      cursor: pointer; padding: 14px 16px; font-weight: 800; font-size: 13.5px; list-style: none;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    details.explain summary::after { content: "+"; color: var(--muted); font-size: 18px; font-weight: 700; }
+    details.explain[open] summary::after { content: "–"; }
+    details.explain .body { padding: 0 16px 16px; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+    details.explain .body code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
+      background: #0d1119; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; color: var(--teal);
+    }
+    details.explain .body b { color: var(--ink); }
+
+    footer { margin-top: 26px; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="brand">Leverage Planner</span>
+      <h1>레버리지는 정해졌고,<br><b>얼마를 넣어야 하는가</b></h1>
+      <p class="lead">켈리 비율을 묻는 대신 거꾸로 갑니다. 레버리지·손절폭·계좌 허용 손실을 넣으면, 계좌가 수학적으로 망가지지 않는 진입금 비율을 역산합니다.</p>
+    </header>
+
+    <div class="layout">
+      <section class="card" aria-label="입력">
+        <h2>포지션 조건</h2>
+
+        <div class="control">
+          <label><span>레버리지</span><span class="val" id="levLabel"></span></label>
+          <div class="inputRow"><input id="lev" type="range" min="1" max="125" step="1" value="20" /><input id="levNum" type="number" min="1" max="125" step="1" value="20" /></div>
+        </div>
+
+        <div class="control">
+          <label><span>계좌 기준 허용 손실</span><span class="val" id="riskLabel"></span></label>
+          <div class="inputRow"><input id="risk" type="range" min="0.1" max="20" step="0.1" value="2" /><input id="riskNum" type="number" min="0.1" max="100" step="0.1" value="2" /></div>
+          <div class="hint">이번 거래가 손절로 끝났을 때 계좌 전체에서 잃어도 되는 최대 비율. 보통 1~2%.</div>
+        </div>
+
+        <div class="control">
+          <label><span>손절 가격폭</span><span class="val bad" id="stopLabel"></span></label>
+          <div class="inputRow"><input id="stop" type="range" min="0.1" max="50" step="0.1" value="1" /><input id="stopNum" type="number" min="0.05" max="100" step="0.05" value="1" /></div>
+          <div class="hint">진입가 대비 손절가까지의 가격 변동률.</div>
+        </div>
+
+        <div class="control">
+          <label><span>목표 수익 가격폭</span><span class="val good" id="takeLabel"></span></label>
+          <div class="inputRow"><input id="take" type="range" min="0.1" max="100" step="0.1" value="3" /><input id="takeNum" type="number" min="0.05" max="1000" step="0.05" value="3" /></div>
+        </div>
+
+        <div class="control">
+          <label><span>예상 승률</span><span class="val" id="winLabel"></span></label>
+          <div class="inputRow"><input id="win" type="range" min="1" max="99" step="1" value="50" /><input id="winNum" type="number" min="1" max="99" step="1" value="50" /></div>
+          <div class="hint">느낌이 아니라 매매 기록에서 추정한 값이어야 합니다.</div>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="control">
+          <label><span>계좌 잔고 <span style="color:var(--muted);font-weight:600">(선택)</span></span><span class="val" id="balLabel"></span></label>
+          <div class="inputRow" style="grid-template-columns: 1fr;">
+            <input id="balNum" type="number" min="0" step="10" value="1000" style="width:100%;" />
+          </div>
+          <div class="hint">USDT 기준. 입력하면 비율이 아닌 실제 금액으로도 보여줍니다.</div>
+        </div>
+      </section>
+
+      <section aria-label="결과">
+        <div class="hero" id="hero">
+          <div class="tag">이번 거래 추천 진입금</div>
+          <div class="big" id="heroPct">–</div>
+          <div class="amount" id="heroAmount"></div>
+          <div class="sub" id="heroSub"></div>
+        </div>
+
+        <div class="warnings" id="warnings"></div>
+
+        <div class="metrics" id="metrics"></div>
+
+        <div class="card chartCard">
+          <h3>진입금 비율에 따른 계좌 손익</h3>
+          <p class="cap">가로축은 자산 대비 진입금 비율. 빨간 선이 노란 점선(허용 손실)을 뚫는 지점이 손실 한도 기준 상한입니다.</p>
+          <canvas id="marginChart"></canvas>
+        </div>
+
+        <div class="card chartCard">
+          <h3>손익비에 따른 로그 성장률</h3>
+          <p class="cap">허용 손실을 전부 쓰는 조건에서, 손익비 R이 최소 몇이어야 장기 복리 기준으로 계좌가 자라는지 보여줍니다.</p>
+          <canvas id="rrChart"></canvas>
+        </div>
+
+        <details class="explain">
+          <summary>계산 방식</summary>
+          <div class="body">
+            <b>1. 손실 한도 기준(생존 규칙)</b><br>
+            <code>허용 진입금 = 허용손실 ÷ (손절폭 × 레버리지)</code><br>
+            이 비율로 진입해 손절되면 계좌 손실이 정확히 허용 손실만큼 나옵니다. 레버리지가 커질수록, 손절폭이 넓을수록 넣을 수 있는 돈은 줄어듭니다.<br><br>
+            <b>2. 켈리 기준(성장 규칙)</b><br>
+            <code>켈리 진입금 = (승률×익절폭 − 패률×손절폭) ÷ (레버리지×익절폭×손절폭)</code><br>
+            장기 로그 성장률을 최대화하는 진입금 비율입니다. 단, 승률과 손익비를 정확히 안다는 전제라서 실전에서는 하프 켈리 이하가 표준입니다.<br><br>
+            <b>3. 추천값</b><br>
+            추천 진입금 = <b>min(허용 진입금, 하프 켈리)</b>. 생존 규칙과 성장 규칙 중 더 보수적인 쪽을 따릅니다. 기대값이 음수면(승률 대비 손익비 부족) 베팅 금지로 표시합니다.<br><br>
+            <b>4. 청산 경고</b><br>
+            격리 마진에서 이론상 청산까지 가격폭은 대략 <code>1 ÷ 레버리지</code>입니다. 손절폭이 이 근처면 손절 주문이 체결되기 전에 강제 청산될 수 있습니다. 유지증거금·수수료·슬리피지를 감안하면 실제 청산은 더 가깝습니다.
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <section class="limitSection" aria-label="레버리지 한계 계산">
+      <div class="secHead">
+        <h2>레버리지 한계 — <b>역U자 곡선</b></h2>
+        <p>결과가 본전(무승부)·손실·수익 세 갈래로 나뉘어도 로그성장률 G(L)을 계산할 수 있습니다. 레버리지를 올릴수록 기대수익은 커지지만 손실 쪽 로그 패널티가 더 빨리 커져서 어느 지점에서 곡선이 꺾입니다. 그 꼭대기가 로그 최적 레버리지입니다.</p>
+      </div>
+      <div class="limitLayout">
+        <div class="card" aria-label="한계 계산 입력">
+          <h2>결과 분포</h2>
+          <div class="control">
+            <label><span>고정할 확률</span><span class="val" id="lockLabel">본전</span></label>
+            <select id="probLock">
+              <option value="flat" selected>본전 확률 고정</option>
+              <option value="loss">손실 확률 고정</option>
+              <option value="win">수익 확률 고정</option>
+            </select>
+            <div class="hint">선택한 확률은 유지되고, 나머지 두 확률이 합계 100% 안에서 자동 조정됩니다.</div>
+          </div>
+          <div class="control">
+            <label><span>본전 확률</span><span class="val" id="flatPLabel"></span></label>
+            <div class="inputRow"><input id="flatP" type="range" min="0" max="100" step="1" value="50" /><input id="flatPNum" type="number" min="0" max="100" step="1" value="50" /></div>
+          </div>
+          <div class="control">
+            <label><span>손실 확률</span><span class="val bad" id="lossPLabel"></span></label>
+            <div class="inputRow"><input id="lossP" type="range" min="0" max="100" step="1" value="10" /><input id="lossPNum" type="number" min="0" max="100" step="1" value="10" /></div>
+          </div>
+          <div class="control">
+            <label><span>수익 확률</span><span class="val good" id="winPLabel"></span></label>
+            <div class="inputRow"><input id="winP" type="range" min="0" max="100" step="1" value="40" /><input id="winPNum" type="number" min="0" max="100" step="1" value="40" /></div>
+          </div>
+          <hr class="divider" />
+          <div class="control">
+            <label><span>손실 시 평균 손실률</span><span class="val bad" id="lossMoveLabel"></span></label>
+            <div class="inputRow"><input id="lossMove" type="range" min="0.5" max="100" step="0.5" value="20" /><input id="lossMoveNum" type="number" min="0.5" max="100" step="0.5" value="20" /></div>
+            <div class="hint">1배 기준. 손실로 끝난 거래의 평균 가격 손실폭.</div>
+          </div>
+          <div class="control">
+            <label><span>수익 시 평균 수익률</span><span class="val good" id="winMoveLabel"></span></label>
+            <div class="inputRow"><input id="winMove" type="range" min="1" max="300" step="1" value="30" /><input id="winMoveNum" type="number" min="1" max="1000" step="1" value="30" /></div>
+          </div>
+          <div class="control">
+            <label><span>자산 대비 진입금 비율</span><span class="val" id="lmarginLabel"></span></label>
+            <div class="inputRow"><input id="lmargin" type="range" min="1" max="100" step="1" value="20" /><input id="lmarginNum" type="number" min="1" max="100" step="1" value="20" /></div>
+          </div>
+          <hr class="divider" />
+          <div class="control">
+            <label style="cursor:pointer;"><span>승률 감쇠 모델</span><input type="checkbox" id="decayOn" checked style="accent-color:var(--teal);width:18px;height:18px;" /></label>
+            <div class="hint">목표가 멀수록 도달 확률이 떨어진다고 가정합니다. 위에서 입력한 (수익률, 수익 확률) 점을 정확히 지나도록 보정되며, 켜면 아래 수익률 차트에 진짜 최적 목표가 생깁니다. 끄면 승률 고정 + 효용 마커 모드.</div>
+          </div>
+          <div class="control" id="alphaControl">
+            <label><span>감쇠 강도 α</span><span class="val" id="alphaLabel"></span></label>
+            <div class="inputRow"><input id="alpha" type="range" min="0.25" max="3" step="0.05" value="1" /><input id="alphaNum" type="number" min="0.25" max="3" step="0.05" value="1" /></div>
+            <div class="hint">도달확률 = 승률 × (현재 수익률 ÷ 목표)^α. α=1이면 목표 거리에 반비례(무추세 랜덤워크 근사), 클수록 먼 목표가 더 어렵다고 봅니다.</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="metrics" id="limitMetrics"></div>
+          <div class="card chartCard">
+            <h3>레버리지별 1회 로그 성장률 G(L)</h3>
+            <p class="cap">0선 위 = 장기 복리 기준으로 계좌에 유리한 영역. 0선 아래 = 겉보기 기대값이 있어도 복리 기준으로 계좌를 깎는 영역. 곡선의 꼭대기 = 로그 최적 레버리지.</p>
+            <div class="readout" id="limitReadout">그래프에 마우스를 올리거나 터치하면 해당 레버리지의 정확한 G(L)이 표시됩니다.</div>
+            <canvas id="limitChart"></canvas>
+          </div>
+          <div class="card chartCard">
+            <h3>수익률별 로그 성장률 — 목표는 어디까지가 최적인가</h3>
+            <p class="cap" id="winMoveCap"></p>
+            <div class="readout" id="targetReadout"></div>
+            <canvas id="winMoveChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      이 도구는 손절가를 대신 정해주지 않습니다. 내 전략의 결과 분포(승률·손절폭·익절폭)를 넣었을 때 어느 진입금부터 계좌가 수학적으로 망가지는지 보는 도구입니다. 수수료·펀딩비·슬리피지는 반영되어 있지 않으며, 전부 계산값을 더 나쁘게 만듭니다.
+    </footer>
+  </div>
+
+  <script>
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+    const els = {
+      lev: $('lev'), levNum: $('levNum'), levLabel: $('levLabel'),
+      risk: $('risk'), riskNum: $('riskNum'), riskLabel: $('riskLabel'),
+      stop: $('stop'), stopNum: $('stopNum'), stopLabel: $('stopLabel'),
+      take: $('take'), takeNum: $('takeNum'), takeLabel: $('takeLabel'),
+      win: $('win'), winNum: $('winNum'), winLabel: $('winLabel'),
+      balNum: $('balNum'), balLabel: $('balLabel'),
+      hero: $('hero'), heroPct: $('heroPct'), heroAmount: $('heroAmount'), heroSub: $('heroSub'),
+      warnings: $('warnings'), metrics: $('metrics'),
+      marginChart: $('marginChart'), rrChart: $('rrChart'),
+      probLock: $('probLock'), lockLabel: $('lockLabel'),
+      flatP: $('flatP'), flatPNum: $('flatPNum'), flatPLabel: $('flatPLabel'),
+      lossP: $('lossP'), lossPNum: $('lossPNum'), lossPLabel: $('lossPLabel'),
+      winP: $('winP'), winPNum: $('winPNum'), winPLabel: $('winPLabel'),
+      lossMove: $('lossMove'), lossMoveNum: $('lossMoveNum'), lossMoveLabel: $('lossMoveLabel'),
+      winMove: $('winMove'), winMoveNum: $('winMoveNum'), winMoveLabel: $('winMoveLabel'),
+      lmargin: $('lmargin'), lmarginNum: $('lmarginNum'), lmarginLabel: $('lmarginLabel'),
+      limitMetrics: $('limitMetrics'), limitChart: $('limitChart'), limitReadout: $('limitReadout'),
+      winMoveChart: $('winMoveChart'), winMoveCap: $('winMoveCap'), targetReadout: $('targetReadout'),
+      decayOn: $('decayOn'), alpha: $('alpha'), alphaNum: $('alphaNum'), alphaLabel: $('alphaLabel'), alphaControl: $('alphaControl'),
+    };
+
+    const pct = (x, d = 1) => `${(x * 100).toFixed(d).replace(/\.0+$/, '')}%`;
+    const usd = x => `${Math.round(x).toLocaleString('ko-KR')} USDT`;
+
+    const STORAGE_KEY = 'leverage-planner-v1';
+
+    function loadSaved() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        for (const k of ['lev', 'risk', 'stop', 'take', 'win']) {
+          if (saved[k] != null) { els[k].value = saved[k]; els[k + 'Num'].value = saved[k]; }
+        }
+        if (saved.bal != null) els.balNum.value = saved.bal;
+      } catch (_) { /* 저장값이 깨져 있으면 기본값 사용 */ }
+    }
+
+    function save(v) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          lev: v.lev, risk: v.riskPct, stop: v.stopPct, take: v.takePct, win: v.winPct, bal: v.bal,
+        }));
+      } catch (_) {}
+    }
+
+    function readInputs() {
+      const lev = Math.max(1, Number(els.lev.value));
+      return {
+        lev,
+        riskPct: Number(els.risk.value),
+        stopPct: Number(els.stop.value),
+        takePct: Number(els.take.value),
+        winPct: Number(els.win.value),
+        bal: Math.max(0, Number(els.balNum.value) || 0),
+      };
+    }
+
+    function compute(v) {
+      const lev = v.lev;
+      const risk = v.riskPct / 100;
+      const stop = Math.max(v.stopPct / 100, 0.0001);
+      const take = Math.max(v.takePct / 100, 0.0001);
+      const p = Math.min(Math.max(v.winPct / 100, 0.01), 0.99);
+      const q = 1 - p;
+
+      const allowedMarginRaw = risk / (stop * lev);
+      const allowedMargin = Math.min(allowedMarginRaw, 1);
+
+      const kellyRaw = (p * take - q * stop) / (lev * take * stop);
+      const kelly = Math.max(0, Math.min(kellyRaw, 1));
+      const halfKelly = kelly / 2;
+      const quarterKelly = kelly / 4;
+
+      const betAllowed = kellyRaw > 0;
+      const recommended = betAllowed ? Math.min(allowedMargin, halfKelly) : 0;
+
+      const exposure = recommended * lev;
+      const accountLoss = stop * exposure;
+      const accountWin = take * exposure;
+
+      const rr = take / stop;
+      const requiredR = q / p;
+      const logBreakEvenR = (Math.pow(1 - risk, -q / p) - 1) / Math.max(risk, 0.000001);
+
+      const liqMove = 1 / lev;
+      const liqDanger = stop >= liqMove * 0.8;
+
+      const growth = betAllowed && recommended > 0
+        ? p * Math.log(1 + recommended * lev * take) + q * Math.log(1 - recommended * lev * stop)
+        : 0;
+
+      return {
+        ...v, risk, stop, take, p, q,
+        allowedMarginRaw, allowedMargin, kellyRaw, kelly, halfKelly, quarterKelly,
+        betAllowed, recommended, exposure, accountLoss, accountWin,
+        rr, requiredR, logBreakEvenR, liqMove, liqDanger, growth,
+      };
+    }
+
+    function renderLabels(r) {
+      els.levLabel.textContent = `${r.lev}x`;
+      els.riskLabel.textContent = `-${pct(r.risk)}`;
+      els.stopLabel.textContent = `-${pct(r.stop)}`;
+      els.takeLabel.textContent = `+${pct(r.take)}`;
+      els.winLabel.textContent = pct(r.p, 0);
+      els.balLabel.textContent = r.bal > 0 ? usd(r.bal) : '';
+    }
+
+    function renderHero(r) {
+      if (!r.betAllowed) {
+        els.hero.classList.add('blocked');
+        els.heroPct.textContent = '베팅 금지';
+        els.heroAmount.textContent = '';
+        els.heroSub.innerHTML =
+          `승률 ${pct(r.p, 0)}에서는 손익비가 최소 <b>${r.requiredR.toFixed(2)}R</b>를 넘어야 기대값이 양수인데, 현재 ${r.rr.toFixed(2)}R입니다. ` +
+          `손절폭 ${pct(r.stop)} 기준으로 목표 수익폭을 +${pct(r.requiredR * r.stop)} 이상으로 잡거나, 이 자리는 건너뛰는 게 맞습니다.`;
+        return;
+      }
+      els.hero.classList.remove('blocked');
+      els.heroPct.textContent = pct(r.recommended, 1);
+      els.heroAmount.textContent = r.bal > 0
+        ? `= ${usd(r.bal * r.recommended)} 진입 · 명목 포지션 ${usd(r.bal * r.exposure)}`
+        : '';
+      const limiter = r.allowedMargin <= r.halfKelly ? '허용 손실 규칙' : '하프 켈리';
+      els.heroSub.innerHTML =
+        `허용손실 기준 ${pct(r.allowedMargin)} vs 하프켈리 ${pct(r.halfKelly)} 중 작은 값 → <b>${limiter}</b>이 상한입니다. ` +
+        `이 진입금으로 손절되면 계좌 <b class="bad">-${pct(r.accountLoss)}</b>, 목표 도달 시 <b class="good">+${pct(r.accountWin)}</b>.`;
+    }
+
+    function renderWarnings(r) {
+      const out = [];
+      if (r.liqDanger) {
+        out.push(`<div class="warn critical"><b>청산 경고:</b> ${r.lev}x에서 이론 청산 가격폭은 약 ${pct(r.liqMove)}인데 손절폭이 ${pct(r.stop)}입니다. 손절 주문이 체결되기 전에 강제 청산될 수 있습니다. 레버리지를 낮추거나 손절폭을 좁혀야 합니다.</div>`);
+      }
+      if (r.betAllowed && r.allowedMarginRaw > 1) {
+        out.push(`<div class="warn">허용 손실 ${pct(r.risk)}를 다 쓰려면 계좌의 ${pct(r.allowedMarginRaw)}를 넣어야 합니다. 이 조건에서는 손실 한도가 아니라 레버리지·손절폭 조합 자체를 다시 보는 게 맞습니다.</div>`);
+      }
+      if (r.betAllowed && r.rr < r.logBreakEvenR) {
+        out.push(`<div class="warn">단순 기대값은 양수지만, 허용 손실 ${pct(r.risk)}를 전부 쓰는 베팅이라면 로그 성장 기준 손익분기 손익비는 ${r.logBreakEvenR.toFixed(2)}R입니다. 현재 ${r.rr.toFixed(2)}R로는 풀사이즈 반복 베팅 시 복리 기준으로 불리할 수 있습니다.</div>`);
+      }
+      els.warnings.innerHTML = out.join('');
+    }
+
+    function metricCard(name, value, cls = '', extra = '') {
+      return `<div class="metric"><div class="name">${name}</div><div class="value ${cls}">${value}</div>${extra ? `<div class="extra">${extra}</div>` : ''}</div>`;
+    }
+
+    function renderMetrics(r) {
+      const balExtra = ratio => (r.bal > 0 && ratio > 0) ? usd(r.bal * ratio) : '';
+      els.metrics.innerHTML = [
+        metricCard('허용 진입금 (손실한도)', pct(r.allowedMargin), 'gold', balExtra(r.allowedMargin)),
+        metricCard('풀켈리 진입금', r.betAllowed ? pct(r.kelly) : '—', 'indigo', r.betAllowed ? `하프 ${pct(r.halfKelly)} · 쿼터 ${pct(r.quarterKelly)}` : '기대값 음수'),
+        metricCard('계좌 노출도 (명목)', pct(r.exposure, 0), '', `추천 진입금 × ${r.lev}x`),
+        metricCard('손절 시 계좌', r.recommended > 0 ? `-${pct(r.accountLoss)}` : '—', 'bad', r.recommended > 0 ? `PnL 화면상 -${pct(r.stop * r.lev, 0)}` : ''),
+        metricCard('목표 도달 시 계좌', r.recommended > 0 ? `+${pct(r.accountWin)}` : '—', 'good', r.recommended > 0 ? `PnL 화면상 +${pct(r.take * r.lev, 0)}` : ''),
+        metricCard('손익비', `${r.rr.toFixed(2)}R`, r.rr >= r.requiredR ? 'good' : 'bad', `기대값 손익분기 ${r.requiredR.toFixed(2)}R`),
+        metricCard('청산까지 가격폭', `≈${pct(r.liqMove)}`, r.liqDanger ? 'bad' : '', `격리 기준 이론값 (1÷${r.lev})`),
+        metricCard('거래당 로그성장', r.recommended > 0 ? `+${(r.growth * 100).toFixed(3)}%` : '—', r.growth > 0 ? 'good' : '', r.recommended > 0 ? `100회 반복 시 ≈${pct(Math.exp(r.growth * 100) - 1, 0)}` : ''),
+      ].join('');
+    }
+
+    /* ---------- charts ---------- */
+
+    function setupCanvas(canvas) {
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      return { ctx, W: rect.width, H: rect.height };
+    }
+
+    function drawMarginChart(r) {
+      const { ctx, W, H } = setupCanvas(els.marginChart);
+      const pad = { l: 52, r: 16, t: 26, b: 38 };
+      const x0 = pad.l, y0 = H - pad.b, x1 = W - pad.r, y1 = pad.t;
+
+      const xMaxRatio = Math.min(1, Math.max(r.allowedMargin, r.kelly, r.recommended, 0.05) * 2.2);
+      const yMax = Math.max(r.risk * 2.5, xMaxRatio * r.lev * Math.max(r.take, r.stop) * 1.05, 0.02);
+      const yMin = -yMax;
+      const X = m => x0 + (m / xMaxRatio) * (x1 - x0);
+      const Y = v => y0 - ((Math.max(yMin, Math.min(yMax, v)) - yMin) / (yMax - yMin)) * (y0 - y1);
+
+      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.strokeStyle = 'rgba(139,149,168,.14)';
+      ctx.fillStyle = '#8b95a8';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const m = xMaxRatio * i / 5;
+        ctx.beginPath(); ctx.moveTo(X(m), y1); ctx.lineTo(X(m), y0); ctx.stroke();
+        ctx.fillText(pct(m, 0), X(m) - 10, y0 + 22);
+      }
+      for (let i = 0; i <= 4; i++) {
+        const v = yMin + (yMax - yMin) * i / 4;
+        ctx.beginPath(); ctx.moveTo(x0, Y(v)); ctx.lineTo(x1, Y(v)); ctx.stroke();
+        ctx.fillText(pct(v, 0), 8, Y(v) + 4);
+      }
+      ctx.strokeStyle = 'rgba(232,237,245,.35)';
+      ctx.beginPath(); ctx.moveTo(x0, Y(0)); ctx.lineTo(x1, Y(0)); ctx.stroke();
+
+      const line = (fn, color) => {
+        ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.beginPath();
+        for (let i = 0; i <= 200; i++) {
+          const m = xMaxRatio * i / 200;
+          const px = X(m), py = Y(fn(m));
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      };
+      line(m => r.take * r.lev * m, '#2dd4bf');
+      line(m => -r.stop * r.lev * m, '#f87171');
+
+      ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#fbbf24';
+      ctx.beginPath(); ctx.moveTo(x0, Y(-r.risk)); ctx.lineTo(x1, Y(-r.risk)); ctx.stroke();
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '700 11px ui-sans-serif, system-ui';
+      ctx.fillText(`허용손실 -${pct(r.risk)}`, x0 + 6, Y(-r.risk) - 6);
+
+      const vline = (ratio, color, label, offset) => {
+        if (ratio <= 0 || ratio > xMaxRatio) return;
+        ctx.strokeStyle = color;
+        ctx.beginPath(); ctx.moveTo(X(ratio), y0); ctx.lineTo(X(ratio), y1); ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.fillText(label, Math.min(X(ratio) + 6, x1 - 110), y1 + offset);
+      };
+      vline(r.allowedMargin, '#fbbf24', `허용 ${pct(r.allowedMargin)}`, 12);
+      if (r.betAllowed) vline(r.kelly, '#818cf8', `풀켈리 ${pct(r.kelly)}`, 28);
+      if (r.recommended > 0) vline(r.recommended, '#e8edf5', `추천 ${pct(r.recommended)}`, 44);
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#8b95a8';
+      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.fillText('자산 대비 진입금 비율 →', (x0 + x1) / 2 - 60, H - 8);
+    }
+
+    function drawRrChart(r) {
+      const { ctx, W, H } = setupCanvas(els.rrChart);
+      const pad = { l: 52, r: 16, t: 26, b: 38 };
+      const x0 = pad.l, y0 = H - pad.b, x1 = W - pad.r, y1 = pad.t;
+
+      const maxR = Math.max(5, Math.min(60, Math.ceil(Math.max(r.rr, r.logBreakEvenR, 3) * 1.6)));
+      const growthAt = R => r.p * Math.log(1 + R * r.risk) + r.q * Math.log(1 - r.risk);
+
+      let minY = 0, maxY = 0;
+      const pts = [];
+      for (let i = 0; i <= 300; i++) {
+        const R = maxR * i / 300;
+        const g = growthAt(R);
+        pts.push([R, g]);
+        minY = Math.min(minY, g); maxY = Math.max(maxY, g);
+      }
+      const padY = (maxY - minY) * 0.15 || 0.01;
+      minY -= padY; maxY += padY;
+      const X = R => x0 + (R / maxR) * (x1 - x0);
+      const Y = g => y0 - ((g - minY) / (maxY - minY)) * (y0 - y1);
+
+      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.strokeStyle = 'rgba(139,149,168,.14)';
+      ctx.fillStyle = '#8b95a8';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const R = maxR * i / 5;
+        ctx.beginPath(); ctx.moveTo(X(R), y1); ctx.lineTo(X(R), y0); ctx.stroke();
+        ctx.fillText(`${R.toFixed(0)}R`, X(R) - 8, y0 + 22);
+      }
+      for (let i = 0; i <= 4; i++) {
+        const g = minY + (maxY - minY) * i / 4;
+        ctx.beginPath(); ctx.moveTo(x0, Y(g)); ctx.lineTo(x1, Y(g)); ctx.stroke();
+        ctx.fillText(`${(g * 100).toFixed(1)}%`, 6, Y(g) + 4);
+      }
+      if (minY < 0 && maxY > 0) {
+        ctx.strokeStyle = 'rgba(232,237,245,.35)';
+        ctx.beginPath(); ctx.moveTo(x0, Y(0)); ctx.lineTo(x1, Y(0)); ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 3; ctx.beginPath();
+      pts.forEach(([R, g], i) => { if (i === 0) ctx.moveTo(X(R), Y(g)); else ctx.lineTo(X(R), Y(g)); });
+      ctx.stroke();
+
+      const marker = (R, color, label, offset) => {
+        if (!Number.isFinite(R) || R < 0 || R > maxR) return;
+        ctx.strokeStyle = color; ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(X(R), y0); ctx.lineTo(X(R), y1); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.fillText(label, Math.min(X(R) + 6, x1 - 130), y1 + offset);
+      };
+      marker(r.logBreakEvenR, '#f87171', `로그 손익분기 ${r.logBreakEvenR.toFixed(2)}R`, 12);
+      marker(r.rr, '#818cf8', `현재 ${r.rr.toFixed(2)}R`, 28);
+
+      ctx.fillStyle = '#8b95a8';
+      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.fillText('손익비 R →', (x0 + x1) / 2 - 26, H - 8);
+    }
+
+    /* ---------- 레버리지 한계 (3-갈래 모델, 역U자 곡선) ---------- */
+
+    const LIMIT_KEY = 'leverage-planner-limit-v1';
+    let limitChartState = null;
+
+    function multiOutcomeGrowth(L, flatP, lossP, winP, lossMove, winMove, margin) {
+      const lossReturn = -lossMove * margin * L;
+      const winReturn = winMove * margin * L;
+      if (1 + lossReturn <= 0 || 1 + winReturn <= 0) return -Infinity;
+      return lossP * Math.log(1 + lossReturn) + winP * Math.log(1 + winReturn);
+    }
+
+    function rebalanceProbs(changedId) {
+      const lock = els.probLock.value;
+      const ids = ['flat', 'loss', 'win'];
+      const input = { flat: els.flatP, loss: els.lossP, win: els.winP };
+      const v = {
+        flat: Number(els.flatP.value),
+        loss: Number(els.lossP.value),
+        win: Number(els.winP.value),
+      };
+      const changed = changedId || 'loss';
+      if (changed === lock) {
+        const others = ids.filter(id => id !== lock);
+        const remain = Math.max(0, 100 - v[lock]);
+        const oldSum = Math.max(1, v[others[0]] + v[others[1]]);
+        v[others[0]] = Math.round(remain * v[others[0]] / oldSum);
+        v[others[1]] = remain - v[others[0]];
+      } else {
+        const third = ids.find(id => id !== lock && id !== changed);
+        const maxChanged = Math.max(0, 100 - v[lock]);
+        v[changed] = Math.min(v[changed], maxChanged);
+        v[third] = 100 - v[lock] - v[changed];
+      }
+      ids.forEach(id => {
+        const clamped = Math.max(0, Math.min(100, Math.round(v[id])));
+        input[id].value = clamped;
+      });
+      els.flatPNum.value = els.flatP.value;
+      els.lossPNum.value = els.lossP.value;
+      els.winPNum.value = els.winP.value;
+    }
+
+    function saveLimit(v) {
+      try {
+        localStorage.setItem(LIMIT_KEY, JSON.stringify({
+          lock: els.probLock.value,
+          flat: v.flatPct, loss: v.lossPct, win: v.winPct,
+          lossMove: v.lossMovePct, winMove: v.winMovePct, margin: v.marginPct,
+          decay: els.decayOn.checked, alpha: Number(els.alpha.value),
+        }));
+      } catch (_) {}
+    }
+
+    function loadLimitSaved() {
+      try {
+        const s = JSON.parse(localStorage.getItem(LIMIT_KEY) || '{}');
+        if (s.lock) els.probLock.value = s.lock;
+        const pairs = [
+          ['flat', els.flatP, els.flatPNum], ['loss', els.lossP, els.lossPNum], ['win', els.winP, els.winPNum],
+          ['lossMove', els.lossMove, els.lossMoveNum], ['winMove', els.winMove, els.winMoveNum], ['margin', els.lmargin, els.lmarginNum],
+          ['alpha', els.alpha, els.alphaNum],
+        ];
+        for (const [k, range, num] of pairs) {
+          if (s[k] != null) { range.value = s[k]; num.value = s[k]; }
+        }
+        if (s.decay != null) els.decayOn.checked = s.decay;
+      } catch (_) {}
+    }
+
+    function updateLimit(changedId) {
+      rebalanceProbs(changedId);
+      const flatPct = Number(els.flatP.value);
+      const lossPct = Number(els.lossP.value);
+      const winPct = Number(els.winP.value);
+      els.lossMoveNum.value = els.lossMove.value;
+      els.winMoveNum.value = els.winMove.value;
+      els.lmarginNum.value = els.lmargin.value;
+      const lossMovePct = Number(els.lossMove.value);
+      const winMovePct = Number(els.winMove.value);
+      const marginPct = Number(els.lmargin.value);
+
+      const flatP = flatPct / 100, lossP = lossPct / 100, winP = winPct / 100;
+      const lossMove = lossMovePct / 100, winMove = winMovePct / 100, margin = marginPct / 100;
+
+      saveLimit({ flatPct, lossPct, winPct, lossMovePct, winMovePct, marginPct });
+
+      els.lockLabel.textContent = ({ flat: '본전', loss: '손실', win: '수익' })[els.probLock.value];
+      els.flatPLabel.textContent = pct(flatP, 0);
+      els.lossPLabel.textContent = pct(lossP, 0);
+      els.winPLabel.textContent = pct(winP, 0);
+      els.lossMoveLabel.textContent = `-${pct(lossMove)}`;
+      els.winMoveLabel.textContent = `+${pct(winMove)}`;
+      els.lmarginLabel.textContent = pct(margin, 0);
+
+      const ruin = lossMove > 0 ? 1 / (lossMove * margin) : Infinity;
+      const scanMax = Math.min(100, ruin * 0.999);
+      let bestL = 0, bestG = -Infinity, maxGood = 0;
+      for (let i = 0; i <= 2000; i++) {
+        const l = scanMax * i / 2000;
+        const g = multiOutcomeGrowth(l, flatP, lossP, winP, lossMove, winMove, margin);
+        if (g > bestG) { bestG = g; bestL = l; }
+        if (g > 0) maxGood = l;
+      }
+      const bestExposure = bestL * margin;
+
+      els.limitMetrics.innerHTML = [
+        metricCard('로그 최적 레버리지', `${bestL.toFixed(1)}x`, 'good', `이 지점이 곡선의 꼭대기`),
+        metricCard('로그 양수 한계', `${maxGood.toFixed(1)}x`, 'gold', `이 위로는 복리 기준 마이너스`),
+        metricCard('청산 이론 한계', Number.isFinite(ruin) ? `${ruin.toFixed(1)}x` : '없음', 'bad', `손실 한 번에 진입금 전액`),
+        metricCard('최적점 계좌 노출', pct(bestExposure, 0), 'indigo', `${bestL.toFixed(1)}x × 진입금 ${pct(margin, 0)}`),
+        metricCard('최적점 손익', bestL > 0 ? `-${pct(lossMove * bestExposure)} / +${pct(winMove * bestExposure)}` : '—', '', '손실 시 / 수익 시 계좌 기준'),
+        metricCard('최적점 로그성장', `${bestG >= 0 ? '+' : ''}${(bestG * 100).toFixed(2)}%`, bestG > 0 ? 'good' : 'bad', '1회 거래당'),
+      ].join('');
+
+      const decay = els.decayOn.checked;
+      const alpha = Number(els.alpha.value);
+      els.alphaNum.value = els.alpha.value;
+      els.alphaLabel.textContent = alpha.toFixed(2);
+      els.alphaControl.style.opacity = decay ? '1' : '.35';
+
+      drawLimitChart({ flatP, lossP, winP, lossMove, winMove, margin, scanMax, bestL, bestG, maxGood });
+      drawWinMoveChart({ flatP, lossP, winP, lossMove, winMove, margin, lev: bestL, decay, alpha });
+    }
+
+    function drawWinMoveChart(s) {
+      const exposure = Math.max(s.lev * s.margin, 0.000001);
+      const pCap = Math.max(0, 1 - s.lossP); // 본전 확률이 음수가 되지 않는 상한
+
+      // 감쇠 모델: p(x) = 승률 × (현재 수익률 / x)^α — 현재 입력점을 정확히 지남
+      const pOf = x => Math.min(pCap, s.winP * Math.pow(s.winMove / Math.max(x, 0.0001), s.alpha));
+      const gAt = (x, pWin) => multiOutcomeGrowth(s.lev, s.flatP, s.lossP, pWin, s.lossMove, x, s.margin);
+
+      let bestX = 0, bestG = -Infinity, bestP = 0;
+      if (s.decay) {
+        // 넓은 범위를 먼저 스캔해서 최적 목표를 찾고, 그 주변으로 축 범위를 잡는다
+        for (let i = 1; i <= 3000; i++) {
+          const x = 10 * i / 3000; // 0 ~ +1000%
+          const g = gAt(x, pOf(x));
+          if (Number.isFinite(g) && g > bestG) { bestG = g; bestX = x; bestP = pOf(x); }
+        }
+      }
+
+      // 효용 마커 (승률 고정 모드 전용)
+      const utilityMarks = [
+        { ratio: 0.5, label: '효용 50%', color: '#fbbf24' },
+        { ratio: 0.25, label: '효용 25%', color: '#f87171' },
+        { ratio: 0.1, label: '효용 10%', color: '#818cf8' },
+      ].map(m => ({ ...m, winPct: ((1 / m.ratio) - 1) / exposure * 100 }));
+
+      const maxWin = s.decay
+        ? Math.max(30, Math.min(1000, Math.ceil(Math.max(bestX * 100 * 2.4, s.winMove * 100 * 1.5) / 10) * 10))
+        : Math.max(100, Math.min(1000, Math.ceil(Math.max(s.winMove * 100 * 1.4, Math.max(...utilityMarks.map(m => m.winPct)), 100) / 100) * 100));
+
+      const { ctx, W, H } = setupCanvas(els.winMoveChart);
+      const pad = { l: 52, r: s.decay ? 46 : 16, t: 26, b: 38 };
+      const x0 = pad.l, y0 = H - pad.b, x1 = W - pad.r, y1 = pad.t;
+      const X = w => x0 + (w / maxWin) * (x1 - x0);
+
+      const pts = [];
+      let minY = 0, maxY = 0;
+      for (let i = 0; i <= 500; i++) {
+        const winPct = maxWin * i / 500;
+        const x = winPct / 100;
+        const g = gAt(x, s.decay ? pOf(x) : s.winP);
+        if (Number.isFinite(g)) { pts.push([winPct, g]); minY = Math.min(minY, g); maxY = Math.max(maxY, g); }
+      }
+      const padY = (maxY - minY) * 0.16 || 0.02;
+      minY -= padY; maxY += padY;
+      const Y = g => y0 - ((g - minY) / (maxY - minY)) * (y0 - y1);
+
+      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.strokeStyle = 'rgba(139,149,168,.14)';
+      ctx.fillStyle = '#8b95a8';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const w = maxWin * i / 5;
+        ctx.beginPath(); ctx.moveTo(X(w), y1); ctx.lineTo(X(w), y0); ctx.stroke();
+        ctx.fillText(`${w.toFixed(0)}%`, X(w) - 12, y0 + 22);
+      }
+      for (let i = 0; i <= 4; i++) {
+        const g = minY + (maxY - minY) * i / 4;
+        ctx.beginPath(); ctx.moveTo(x0, Y(g)); ctx.lineTo(x1, Y(g)); ctx.stroke();
+        ctx.fillText(`${(g * 100).toFixed(1)}%`, 6, Y(g) + 4);
+      }
+      if (minY < 0 && maxY > 0) {
+        ctx.strokeStyle = 'rgba(248,113,113,.5)';
+        ctx.beginPath(); ctx.moveTo(x0, Y(0)); ctx.lineTo(x1, Y(0)); ctx.stroke();
+      }
+
+      // 도달 확률 곡선 (감쇠 모드, 오른쪽 축 0~100%)
+      if (s.decay) {
+        const Yp = p => y0 - p * (y0 - y1);
+        ctx.strokeStyle = 'rgba(129,140,248,.7)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        for (let i = 1; i <= 300; i++) {
+          const winPct = maxWin * i / 300;
+          const py = Yp(pOf(winPct / 100));
+          if (i === 1) ctx.moveTo(X(winPct), py); else ctx.lineTo(X(winPct), py);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#818cf8';
+        for (let i = 0; i <= 4; i++) {
+          const p = i / 4;
+          ctx.fillText(`${(p * 100).toFixed(0)}%`, x1 + 6, Yp(p) + 4);
+        }
+        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.fillText('도달확률', x1 - 52, y1 + 12);
+      }
+
+      // G 곡선
+      ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 3; ctx.beginPath();
+      pts.forEach(([w, g], i) => { if (i === 0) ctx.moveTo(X(w), Y(g)); else ctx.lineTo(X(w), Y(g)); });
+      ctx.stroke();
+
+      if (s.decay) {
+        // 최적 목표 마커
+        if (bestX > 0 && Number.isFinite(bestG)) {
+          const bx = Math.min(bestX * 100, maxWin);
+          ctx.strokeStyle = '#fbbf24';
+          ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(X(bx), y0); ctx.lineTo(X(bx), y1); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#fbbf24';
+          ctx.beginPath(); ctx.arc(X(bx), Y(bestG), 5, 0, Math.PI * 2); ctx.fill();
+          ctx.font = '700 11px ui-sans-serif, system-ui';
+          ctx.fillText(`최적 목표 +${pct(bestX)}`, Math.min(X(bx) + 8, x1 - 110), Math.max(Y(bestG) - 10, y1 + 12));
+        }
+      } else {
+        utilityMarks.forEach((m, idx) => {
+          if (m.winPct > maxWin) return;
+          const g = gAt(m.winPct / 100, s.winP);
+          ctx.strokeStyle = m.color;
+          ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(X(m.winPct), y0); ctx.lineTo(X(m.winPct), y1); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = m.color;
+          ctx.font = '700 11px ui-sans-serif, system-ui';
+          ctx.fillText(`${m.label} ${m.winPct.toFixed(0)}%`, Math.min(X(m.winPct) + 6, x1 - 92), y1 + 12 + idx * 15);
+          if (Number.isFinite(g)) { ctx.beginPath(); ctx.arc(X(m.winPct), Y(g), 4, 0, Math.PI * 2); ctx.fill(); }
+        });
+      }
+
+      // 현재 목표 마커 (양쪽 모드 공통)
+      const curWinPct = Math.min(s.winMove * 100, maxWin);
+      const curG = gAt(s.winMove, s.winP); // 감쇠 모델도 현재점은 정확히 (winMove, winP)를 지남
+      ctx.strokeStyle = '#e8edf5';
+      ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(X(curWinPct), y0); ctx.lineTo(X(curWinPct), y1); ctx.stroke();
+      ctx.setLineDash([]);
+      if (Number.isFinite(curG)) {
+        ctx.fillStyle = '#e8edf5';
+        ctx.beginPath(); ctx.arc(X(curWinPct), Y(curG), 5, 0, Math.PI * 2); ctx.fill();
+        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.fillText(`현재 +${pct(s.winMove)}`, Math.min(X(curWinPct) + 8, x1 - 80), Math.min(Y(curG) + 20, y0 - 8));
+      }
+
+      ctx.fillStyle = '#8b95a8';
+      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.fillText(`목표 수익률 → (레버리지 ${s.lev.toFixed(1)}x 고정)`, (x0 + x1) / 2 - 88, H - 8);
+
+      // 캡션·요약 텍스트
+      if (s.decay) {
+        els.winMoveCap.textContent = '위에서 찾은 로그 최적 레버리지를 고정하고, 목표가 멀수록 도달 확률이 떨어지는 감쇠 모델로 목표 수익률별 로그 성장률을 그립니다. 보라 점선이 도달 확률(오른쪽 축), 초록 곡선이 성장률입니다.';
+        if (bestX > 0 && Number.isFinite(bestG) && bestG > 0) {
+          const curRatio = Number.isFinite(curG) && bestG > 0 ? curG / bestG : NaN;
+          const compare = Number.isFinite(curRatio)
+            ? (curRatio >= 0.95
+              ? '현재 목표는 최적에 거의 붙어 있습니다.'
+              : `현재 목표(+${pct(s.winMove)})의 성장률은 최적의 ${(curRatio * 100).toFixed(0)}% 수준입니다.`)
+            : '';
+          const capNote = bestP >= pCap - 0.005
+            ? ` 이 α에서는 목표를 당길수록 복리에 유리해서, 도달확률이 상한(1−손실확률 = ${pct(pCap, 0)})에 닿는 지점이 최적이 됩니다 — "자주 조금씩"이 수학적으로 이기는 구간입니다.`
+            : '';
+          els.targetReadout.innerHTML =
+            `이 감쇠 모델(α=${s.alpha.toFixed(2)})에서 로그 최적 목표는 <b>+${pct(bestX)}</b> — 도달확률 ${pct(bestP, 0)}, 1회 로그성장 ${(bestG * 100).toFixed(3)}%. ${compare}${capNote}`;
+        } else {
+          els.targetReadout.innerHTML = '이 확률·손실 조건에서는 어떤 목표를 잡아도 로그성장이 양수가 되지 않습니다. 손실 확률이나 손실률부터 줄여야 합니다.';
+        }
+      } else {
+        els.winMoveCap.textContent = '승률을 고정한 모드입니다. 수익률을 올려도 곡선이 점점 완만해지는 이유는 ln(1+수익) 구조 때문이며, 효용 마커는 추가 수익 1%p의 복리 기여가 처음의 50%·25%·10%로 떨어지는 지점입니다.';
+        els.targetReadout.innerHTML = '주의: 승률 고정 시 곡선에 꼭대기가 없어서 "최적 목표"도 없습니다. 감쇠 모델을 켜면 목표가 멀수록 도달 확률이 떨어지는 현실을 반영해 진짜 최적점이 계산됩니다.';
+      }
+    }
+
+    function drawLimitChart(s) {
+      const { ctx, W, H } = setupCanvas(els.limitChart);
+      const pad = { l: 52, r: 16, t: 26, b: 38 };
+      const x0 = pad.l, y0 = H - pad.b, x1 = W - pad.r, y1 = pad.t;
+      const X = l => x0 + (l / s.scanMax) * (x1 - x0);
+
+      const pts = [];
+      let minY = 0, maxY = 0;
+      for (let i = 0; i <= 500; i++) {
+        const l = s.scanMax * i / 500;
+        const g = multiOutcomeGrowth(l, s.flatP, s.lossP, s.winP, s.lossMove, s.winMove, s.margin);
+        if (Number.isFinite(g)) { pts.push([l, g]); minY = Math.min(minY, g); maxY = Math.max(maxY, g); }
+      }
+      const padY = (maxY - minY) * 0.16 || 0.02;
+      minY -= padY; maxY += padY;
+      const Y = g => y0 - ((g - minY) / (maxY - minY)) * (y0 - y1);
+
+      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.strokeStyle = 'rgba(139,149,168,.14)';
+      ctx.fillStyle = '#8b95a8';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const l = s.scanMax * i / 5;
+        ctx.beginPath(); ctx.moveTo(X(l), y1); ctx.lineTo(X(l), y0); ctx.stroke();
+        ctx.fillText(`${l.toFixed(0)}x`, X(l) - 8, y0 + 22);
+      }
+      for (let i = 0; i <= 4; i++) {
+        const g = minY + (maxY - minY) * i / 4;
+        ctx.beginPath(); ctx.moveTo(x0, Y(g)); ctx.lineTo(x1, Y(g)); ctx.stroke();
+        ctx.fillText(`${(g * 100).toFixed(1)}%`, 6, Y(g) + 4);
+      }
+      if (minY < 0 && maxY > 0) {
+        ctx.strokeStyle = 'rgba(248,113,113,.5)';
+        ctx.beginPath(); ctx.moveTo(x0, Y(0)); ctx.lineTo(x1, Y(0)); ctx.stroke();
+        ctx.fillStyle = '#f87171';
+        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.fillText('0 = 복리 손익분기', x1 - 100, Y(0) - 6);
+      }
+
+      ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 3; ctx.beginPath();
+      pts.forEach(([l, g], i) => { if (i === 0) ctx.moveTo(X(l), Y(g)); else ctx.lineTo(X(l), Y(g)); });
+      ctx.stroke();
+
+      ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
+      if (s.maxGood > 0 && s.maxGood < s.scanMax) {
+        ctx.strokeStyle = '#fbbf24';
+        ctx.beginPath(); ctx.moveTo(X(s.maxGood), y0); ctx.lineTo(X(s.maxGood), y1); ctx.stroke();
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.fillText(`양수 한계 ${s.maxGood.toFixed(1)}x`, Math.min(X(s.maxGood) + 6, x1 - 100), y1 + 28);
+      }
+      ctx.strokeStyle = '#f87171';
+      ctx.beginPath(); ctx.moveTo(X(s.bestL), y0); ctx.lineTo(X(s.bestL), y1); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#f87171';
+      ctx.beginPath(); ctx.arc(X(s.bestL), Y(s.bestG), 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e8edf5';
+      ctx.font = '700 11px ui-sans-serif, system-ui';
+      ctx.fillText(`최적 ${s.bestL.toFixed(1)}x`, Math.min(X(s.bestL) + 8, x1 - 70), Math.max(Y(s.bestG) - 10, y1 + 12));
+
+      ctx.fillStyle = '#8b95a8';
+      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.fillText('레버리지 →', (x0 + x1) / 2 - 26, H - 8);
+
+      limitChartState = { ...s, x0, x1 };
+    }
+
+    function limitReadoutAt(clientX) {
+      if (!limitChartState) return;
+      const s = limitChartState;
+      const rect = els.limitChart.getBoundingClientRect();
+      const px = clientX - rect.left;
+      const ratio = Math.max(0, Math.min(1, (px - s.x0) / (s.x1 - s.x0)));
+      const l = s.scanMax * ratio;
+      const g = multiOutcomeGrowth(l, s.flatP, s.lossP, s.winP, s.lossMove, s.winMove, s.margin);
+      const exposure = l * s.margin;
+      els.limitReadout.innerHTML = Number.isFinite(g)
+        ? `레버리지 <b>${l.toFixed(1)}x</b> → G(L) = <b>${(g * 100).toFixed(3)}%</b> · 노출 ${pct(exposure, 0)} · 손실 시 계좌 -${pct(s.lossMove * exposure)} · 수익 시 +${pct(s.winMove * exposure)}`
+        : `레버리지 ${l.toFixed(1)}x는 손실 한 번에 계좌가 소멸하는 영역입니다.`;
+    }
+
+    /* ---------- wiring ---------- */
+
+    function update() {
+      const r = compute(readInputs());
+      save(r);
+      renderLabels(r);
+      renderHero(r);
+      renderWarnings(r);
+      renderMetrics(r);
+      drawMarginChart(r);
+      drawRrChart(r);
+    }
+
+    function bindPair(rangeEl, numEl, fn = () => update()) {
+      rangeEl.addEventListener('input', () => { numEl.value = rangeEl.value; fn(); });
+      numEl.addEventListener('input', () => {
+        if (numEl.value === '' || Number.isNaN(Number(numEl.value))) return;
+        rangeEl.value = numEl.value;
+        fn();
+      });
+      numEl.addEventListener('blur', () => {
+        const min = Number(numEl.min), max = Number(numEl.max);
+        let v = Number(numEl.value);
+        if (Number.isNaN(v)) v = Number(rangeEl.value);
+        v = Math.max(min, Math.min(max, v));
+        numEl.value = v;
+        rangeEl.value = v;
+        fn();
+      });
+    }
+
+    bindPair(els.lev, els.levNum);
+    bindPair(els.risk, els.riskNum);
+    bindPair(els.stop, els.stopNum);
+    bindPair(els.take, els.takeNum);
+    bindPair(els.win, els.winNum);
+    els.balNum.addEventListener('input', update);
+
+    bindPair(els.flatP, els.flatPNum, () => updateLimit('flat'));
+    bindPair(els.lossP, els.lossPNum, () => updateLimit('loss'));
+    bindPair(els.winP, els.winPNum, () => updateLimit('win'));
+    bindPair(els.lossMove, els.lossMoveNum, () => updateLimit());
+    bindPair(els.winMove, els.winMoveNum, () => updateLimit());
+    bindPair(els.lmargin, els.lmarginNum, () => updateLimit());
+    bindPair(els.alpha, els.alphaNum, () => updateLimit());
+    els.probLock.addEventListener('change', () => updateLimit());
+    els.decayOn.addEventListener('change', () => updateLimit());
+
+    els.limitChart.addEventListener('pointermove', e => limitReadoutAt(e.clientX));
+    els.limitChart.addEventListener('pointerdown', e => limitReadoutAt(e.clientX));
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { update(); updateLimit(); }, 120);
+    });
+
+    loadSaved();
+    loadLimitSaved();
+    update();
+    updateLimit();
+  </script>
+</body>
+</html>
