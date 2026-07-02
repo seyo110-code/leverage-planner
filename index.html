@@ -124,13 +124,14 @@
     canvas { width: 100%; height: 320px; display: block; touch-action: pan-y; }
     @media (max-width: 640px) { canvas { height: 260px; } }
 
-    /* 레버리지 한계 섹션 */
-    .limitSection { margin-top: 34px; }
-    .limitSection > .secHead h2 {
+    /* 섹션 헤딩 */
+    .secHead h2 {
       margin: 0 0 6px; font-size: clamp(20px, 4vw, 28px); letter-spacing: -0.03em; font-weight: 900;
     }
-    .limitSection > .secHead h2 b { background: linear-gradient(90deg, var(--gold), var(--red)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .limitSection > .secHead p { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; line-height: 1.6; max-width: 680px; }
+    .secHead h2 b { background: linear-gradient(90deg, var(--gold), var(--red)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .secHead p { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; line-height: 1.6; max-width: 680px; }
+    .plannerHead { margin-top: 34px; }
+    .plannerHead h2 b { background: linear-gradient(90deg, var(--teal), var(--indigo)); -webkit-background-clip: text; background-clip: text; color: transparent; }
     .limitLayout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
     @media (max-width: 860px) { .limitLayout { grid-template-columns: 1fr; } }
     select {
@@ -167,9 +168,87 @@
   <div class="wrap">
     <header>
       <span class="brand">Leverage Planner</span>
-      <h1>레버리지는 정해졌고,<br><b>얼마를 넣어야 하는가</b></h1>
-      <p class="lead">켈리 비율을 묻는 대신 거꾸로 갑니다. 레버리지·손절폭·계좌 허용 손실을 넣으면, 계좌가 수학적으로 망가지지 않는 진입금 비율을 역산합니다.</p>
+      <h1>최적 레버리지를 찾고,<br><b>진입금까지 역산한다</b></h1>
+      <p class="lead">본전·손실·수익 분포에서 로그 최적 레버리지를 먼저 찾고, 정해진 레버리지에서 계좌가 수학적으로 망가지지 않는 진입금 비율을 역산합니다.</p>
     </header>
+
+    <section class="limitSection" aria-label="레버리지 한계 계산">
+      <div class="secHead">
+        <h2>레버리지 한계 — <b>역U자 곡선</b></h2>
+        <p>결과가 본전(무승부)·손실·수익 세 갈래로 나뉘어도 로그성장률 G(L)을 계산할 수 있습니다. 레버리지를 올릴수록 기대수익은 커지지만 손실 쪽 로그 패널티가 더 빨리 커져서 어느 지점에서 곡선이 꺾입니다. 그 꼭대기가 로그 최적 레버리지입니다.</p>
+      </div>
+      <div class="limitLayout">
+        <div class="card" aria-label="한계 계산 입력">
+          <h2>결과 분포</h2>
+          <div class="control">
+            <label><span>고정할 확률</span><span class="val" id="lockLabel">본전</span></label>
+            <select id="probLock">
+              <option value="flat" selected>본전 확률 고정</option>
+              <option value="loss">손실 확률 고정</option>
+              <option value="win">수익 확률 고정</option>
+            </select>
+            <div class="hint">선택한 확률은 유지되고, 나머지 두 확률이 합계 100% 안에서 자동 조정됩니다.</div>
+          </div>
+          <div class="control">
+            <label><span>본전 확률</span><span class="val" id="flatPLabel"></span></label>
+            <div class="inputRow"><input id="flatP" type="range" min="0" max="100" step="1" value="50" /><input id="flatPNum" type="number" min="0" max="100" step="1" value="50" /></div>
+          </div>
+          <div class="control">
+            <label><span>손실 확률</span><span class="val bad" id="lossPLabel"></span></label>
+            <div class="inputRow"><input id="lossP" type="range" min="0" max="100" step="1" value="10" /><input id="lossPNum" type="number" min="0" max="100" step="1" value="10" /></div>
+          </div>
+          <div class="control">
+            <label><span>수익 확률</span><span class="val good" id="winPLabel"></span></label>
+            <div class="inputRow"><input id="winP" type="range" min="0" max="100" step="1" value="40" /><input id="winPNum" type="number" min="0" max="100" step="1" value="40" /></div>
+          </div>
+          <hr class="divider" />
+          <div class="control">
+            <label><span>손실 시 평균 손실률</span><span class="val bad" id="lossMoveLabel"></span></label>
+            <div class="inputRow"><input id="lossMove" type="range" min="0.5" max="100" step="0.5" value="20" /><input id="lossMoveNum" type="number" min="0.5" max="100" step="0.5" value="20" /></div>
+            <div class="hint">1배 기준. 손실로 끝난 거래의 평균 가격 손실폭.</div>
+          </div>
+          <div class="control">
+            <label><span>수익 시 평균 수익률</span><span class="val good" id="winMoveLabel"></span></label>
+            <div class="inputRow"><input id="winMove" type="range" min="1" max="300" step="1" value="30" /><input id="winMoveNum" type="number" min="1" max="1000" step="1" value="30" /></div>
+          </div>
+          <div class="control">
+            <label><span>자산 대비 진입금 비율</span><span class="val" id="lmarginLabel"></span></label>
+            <div class="inputRow"><input id="lmargin" type="range" min="1" max="100" step="1" value="20" /><input id="lmarginNum" type="number" min="1" max="100" step="1" value="20" /></div>
+          </div>
+          <hr class="divider" />
+          <div class="control">
+            <label style="cursor:pointer;"><span>승률 감쇠 모델</span><input type="checkbox" id="decayOn" checked style="accent-color:var(--teal);width:18px;height:18px;" /></label>
+            <div class="hint">목표가 멀수록 도달 확률이 떨어진다고 가정합니다. 위에서 입력한 (수익률, 수익 확률) 점을 정확히 지나도록 보정되며, 켜면 아래 수익률 차트에 진짜 최적 목표가 생깁니다. 끄면 승률 고정 + 효용 마커 모드.</div>
+          </div>
+          <div class="control" id="alphaControl">
+            <label><span>감쇠 강도 α</span><span class="val" id="alphaLabel"></span></label>
+            <div class="inputRow"><input id="alpha" type="range" min="0.25" max="3" step="0.05" value="1" /><input id="alphaNum" type="number" min="0.25" max="3" step="0.05" value="1" /></div>
+            <div class="hint">도달확률 = 승률 × (현재 수익률 ÷ 목표)^α. α=1이면 목표 거리에 반비례(무추세 랜덤워크 근사), 클수록 먼 목표가 더 어렵다고 봅니다.</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="metrics" id="limitMetrics"></div>
+          <div class="card chartCard">
+            <h3>레버리지별 1회 로그 성장률 G(L)</h3>
+            <p class="cap">0선 위 = 장기 복리 기준으로 계좌에 유리한 영역. 0선 아래 = 겉보기 기대값이 있어도 복리 기준으로 계좌를 깎는 영역. 곡선의 꼭대기 = 로그 최적 레버리지.</p>
+            <div class="readout" id="limitReadout">그래프에 마우스를 올리거나 터치하면 해당 레버리지의 정확한 G(L)이 표시됩니다.</div>
+            <canvas id="limitChart"></canvas>
+          </div>
+          <div class="card chartCard">
+            <h3>수익률별 로그 성장률 — 목표는 어디까지가 최적인가</h3>
+            <p class="cap" id="winMoveCap"></p>
+            <div class="readout" id="targetReadout"></div>
+            <canvas id="winMoveChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="secHead plannerHead">
+      <h2>레버리지는 정해졌고 — <b>얼마를 넣어야 하는가</b></h2>
+      <p>켈리 비율을 묻는 대신 거꾸로 갑니다. 레버리지·손절폭·계좌 허용 손실을 넣으면, 계좌를 지키는 진입금 비율을 역산합니다.</p>
+    </div>
 
     <div class="layout">
       <section class="card" aria-label="입력">
@@ -255,79 +334,6 @@
         </details>
       </section>
     </div>
-
-    <section class="limitSection" aria-label="레버리지 한계 계산">
-      <div class="secHead">
-        <h2>레버리지 한계 — <b>역U자 곡선</b></h2>
-        <p>결과가 본전(무승부)·손실·수익 세 갈래로 나뉘어도 로그성장률 G(L)을 계산할 수 있습니다. 레버리지를 올릴수록 기대수익은 커지지만 손실 쪽 로그 패널티가 더 빨리 커져서 어느 지점에서 곡선이 꺾입니다. 그 꼭대기가 로그 최적 레버리지입니다.</p>
-      </div>
-      <div class="limitLayout">
-        <div class="card" aria-label="한계 계산 입력">
-          <h2>결과 분포</h2>
-          <div class="control">
-            <label><span>고정할 확률</span><span class="val" id="lockLabel">본전</span></label>
-            <select id="probLock">
-              <option value="flat" selected>본전 확률 고정</option>
-              <option value="loss">손실 확률 고정</option>
-              <option value="win">수익 확률 고정</option>
-            </select>
-            <div class="hint">선택한 확률은 유지되고, 나머지 두 확률이 합계 100% 안에서 자동 조정됩니다.</div>
-          </div>
-          <div class="control">
-            <label><span>본전 확률</span><span class="val" id="flatPLabel"></span></label>
-            <div class="inputRow"><input id="flatP" type="range" min="0" max="100" step="1" value="50" /><input id="flatPNum" type="number" min="0" max="100" step="1" value="50" /></div>
-          </div>
-          <div class="control">
-            <label><span>손실 확률</span><span class="val bad" id="lossPLabel"></span></label>
-            <div class="inputRow"><input id="lossP" type="range" min="0" max="100" step="1" value="10" /><input id="lossPNum" type="number" min="0" max="100" step="1" value="10" /></div>
-          </div>
-          <div class="control">
-            <label><span>수익 확률</span><span class="val good" id="winPLabel"></span></label>
-            <div class="inputRow"><input id="winP" type="range" min="0" max="100" step="1" value="40" /><input id="winPNum" type="number" min="0" max="100" step="1" value="40" /></div>
-          </div>
-          <hr class="divider" />
-          <div class="control">
-            <label><span>손실 시 평균 손실률</span><span class="val bad" id="lossMoveLabel"></span></label>
-            <div class="inputRow"><input id="lossMove" type="range" min="0.5" max="100" step="0.5" value="20" /><input id="lossMoveNum" type="number" min="0.5" max="100" step="0.5" value="20" /></div>
-            <div class="hint">1배 기준. 손실로 끝난 거래의 평균 가격 손실폭.</div>
-          </div>
-          <div class="control">
-            <label><span>수익 시 평균 수익률</span><span class="val good" id="winMoveLabel"></span></label>
-            <div class="inputRow"><input id="winMove" type="range" min="1" max="300" step="1" value="30" /><input id="winMoveNum" type="number" min="1" max="1000" step="1" value="30" /></div>
-          </div>
-          <div class="control">
-            <label><span>자산 대비 진입금 비율</span><span class="val" id="lmarginLabel"></span></label>
-            <div class="inputRow"><input id="lmargin" type="range" min="1" max="100" step="1" value="20" /><input id="lmarginNum" type="number" min="1" max="100" step="1" value="20" /></div>
-          </div>
-          <hr class="divider" />
-          <div class="control">
-            <label style="cursor:pointer;"><span>승률 감쇠 모델</span><input type="checkbox" id="decayOn" checked style="accent-color:var(--teal);width:18px;height:18px;" /></label>
-            <div class="hint">목표가 멀수록 도달 확률이 떨어진다고 가정합니다. 위에서 입력한 (수익률, 수익 확률) 점을 정확히 지나도록 보정되며, 켜면 아래 수익률 차트에 진짜 최적 목표가 생깁니다. 끄면 승률 고정 + 효용 마커 모드.</div>
-          </div>
-          <div class="control" id="alphaControl">
-            <label><span>감쇠 강도 α</span><span class="val" id="alphaLabel"></span></label>
-            <div class="inputRow"><input id="alpha" type="range" min="0.25" max="3" step="0.05" value="1" /><input id="alphaNum" type="number" min="0.25" max="3" step="0.05" value="1" /></div>
-            <div class="hint">도달확률 = 승률 × (현재 수익률 ÷ 목표)^α. α=1이면 목표 거리에 반비례(무추세 랜덤워크 근사), 클수록 먼 목표가 더 어렵다고 봅니다.</div>
-          </div>
-        </div>
-
-        <div>
-          <div class="metrics" id="limitMetrics"></div>
-          <div class="card chartCard">
-            <h3>레버리지별 1회 로그 성장률 G(L)</h3>
-            <p class="cap">0선 위 = 장기 복리 기준으로 계좌에 유리한 영역. 0선 아래 = 겉보기 기대값이 있어도 복리 기준으로 계좌를 깎는 영역. 곡선의 꼭대기 = 로그 최적 레버리지.</p>
-            <div class="readout" id="limitReadout">그래프에 마우스를 올리거나 터치하면 해당 레버리지의 정확한 G(L)이 표시됩니다.</div>
-            <canvas id="limitChart"></canvas>
-          </div>
-          <div class="card chartCard">
-            <h3>수익률별 로그 성장률 — 목표는 어디까지가 최적인가</h3>
-            <p class="cap" id="winMoveCap"></p>
-            <div class="readout" id="targetReadout"></div>
-            <canvas id="winMoveChart"></canvas>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <footer>
       이 도구는 손절가를 대신 정해주지 않습니다. 내 전략의 결과 분포(승률·손절폭·익절폭)를 넣었을 때 어느 진입금부터 계좌가 수학적으로 망가지는지 보는 도구입니다. 수수료·펀딩비·슬리피지는 반영되어 있지 않으며, 전부 계산값을 더 나쁘게 만듭니다.
