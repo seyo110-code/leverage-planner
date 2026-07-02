@@ -241,9 +241,9 @@
             <div class="hint">목표가 멀수록 도달 확률이 떨어진다고 가정합니다. 위에서 입력한 (수익률, 수익 확률) 점을 정확히 지나도록 보정되며, 켜면 아래 수익률 차트에 진짜 최적 목표가 생깁니다. 끄면 승률 고정 + 효용 마커 모드.</div>
           </div>
           <div class="control" id="alphaControl">
-            <label><span>감쇠 강도 α</span><span class="val" id="alphaLabel"></span></label>
+            <label><span>감쇠 강도 α<span class="tip" tabindex="0" role="button" aria-label="감쇠 강도 설명">?<span class="tipBox">α는 <b>"목표를 2배 멀리 잡으면 도달확률이 얼마나 깎이는가"</b>입니다.<br><br>승률 40% · 목표 +30% 기준으로 목표를 +60%(2배)로 늘리면:<br>· α=0.5 → 28% (완만)<br>· α=1 → 20% (딱 절반, 반비례)<br>· α=2 → 10% (급함)<br><br><b>α=1</b>은 방향성 없는 랜덤워크 근사. <b>α&gt;1</b>은 먼 목표가 훨씬 안 나오는 횡보장 가정 — 최적 목표가 가까워집니다. <b>α&lt;1</b>은 추세 붙으면 멀리 가는 장 가정 — 최적 목표가 멀어집니다.<br><br>기록으로 역산: +30% 도달 빈도 대비 +60% 도달 빈도가 절반이면 α≈1, 그보다 훨씬 적으면 α&gt;1.</span></span></span><span class="val" id="alphaLabel"></span></label>
             <div class="inputRow"><input id="alpha" type="range" min="0.25" max="3" step="0.05" value="1" /><input id="alphaNum" type="number" min="0.25" max="3" step="0.05" value="1" /></div>
-            <div class="hint">도달확률 = 승률 × (현재 수익률 ÷ 목표)^α. α=1이면 목표 거리에 반비례(무추세 랜덤워크 근사), 클수록 먼 목표가 더 어렵다고 봅니다.</div>
+            <div class="hint">도달확률 = 승률 × (현재 수익률 ÷ 목표)^α. 클수록 먼 목표 도달이 어렵다고 봅니다.</div>
           </div>
         </div>
 
