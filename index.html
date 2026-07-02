@@ -81,6 +81,26 @@
     .hint { color: var(--muted); font-size: 11.5px; line-height: 1.5; margin-top: 5px; }
     .divider { border: 0; border-top: 1px dashed var(--line); margin: 16px 0; }
 
+    /* 물음표 툴팁 */
+    .tip {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 1px solid var(--muted); color: var(--muted);
+      font-size: 10.5px; font-weight: 800; cursor: help;
+      position: relative; margin-left: 5px; user-select: none;
+    }
+    .tip:hover, .tip:focus, .tip.open { color: var(--teal); border-color: var(--teal); outline: none; }
+    .tipBox {
+      position: absolute; z-index: 20; top: 22px; left: 50%; transform: translateX(-50%);
+      width: min(290px, calc(100vw - 48px));
+      background: #0d1119; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; font-size: 12px; font-weight: 500; line-height: 1.65; color: var(--muted);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, .55);
+      display: none; text-align: left; white-space: normal; cursor: auto;
+    }
+    .tipBox b { color: var(--ink); }
+    .tip:hover .tipBox, .tip:focus .tipBox, .tip.open .tipBox { display: block; }
+
     /* hero */
     .hero {
       position: relative; overflow: hidden;
@@ -203,12 +223,12 @@
           </div>
           <hr class="divider" />
           <div class="control">
-            <label><span>손실 시 평균 손실률</span><span class="val bad" id="lossMoveLabel"></span></label>
+            <label><span>손실 시 평균 손실률<span class="tip" tabindex="0" role="button" aria-label="손실률 설명">?<span class="tipBox">계획한 손절폭이 아니라 <b>매매 기록의 통계</b>입니다. 손실로 끝난 거래들이 평균적으로 가격 기준 몇 %에서 끝났는지를 넣습니다.<br><br>손절가에 정확히 나가지는 경우는 드뭅니다 — 슬리피지로 더 밀리거나, 손절가 전에 판단으로 먼저 나오거나, 갭으로 뚫리기도 하죠. 그래서 계획값이 아닌 <b>실제 평균</b>이어야 합니다.<br><br>레버리지를 곱하기 전 <b>1배 기준 가격 변동</b>입니다. 계좌 손실이 아닙니다 — 20배에서 가격 -4%면 진입금 기준 -80%지만, 여기 넣는 값은 4%입니다.<br><br>주의: 평균은 꼬리 손실을 숨깁니다. 같은 평균 -4%라도 "-2% 넷 + -12% 하나"가 복리에는 더 나쁘므로, 계산 결과는 낙관적 상한으로 보세요.</span></span></span><span class="val bad" id="lossMoveLabel"></span></label>
             <div class="inputRow"><input id="lossMove" type="range" min="0.5" max="100" step="0.5" value="20" /><input id="lossMoveNum" type="number" min="0.5" max="100" step="0.5" value="20" /></div>
-            <div class="hint">1배 기준. 손실로 끝난 거래의 평균 가격 손실폭.</div>
+            <div class="hint">예: 20번 중 5번 손실, 각 -3/-5/-2/-8/-2%였다면 → 손실 확률 25%, 평균 손실률 4%.</div>
           </div>
           <div class="control">
-            <label><span>수익 시 평균 수익률</span><span class="val good" id="winMoveLabel"></span></label>
+            <label><span>수익 시 평균 수익률<span class="tip" tabindex="0" role="button" aria-label="수익률 설명">?<span class="tipBox">같은 개념입니다. 수익으로 끝난 거래들이 평균적으로 가격 기준 몇 %에서 끝났는지 — 목표가가 아니라 매매 기록의 실제 평균, 레버리지 곱하기 전 1배 기준.</span></span></span><span class="val good" id="winMoveLabel"></span></label>
             <div class="inputRow"><input id="winMove" type="range" min="1" max="300" step="1" value="30" /><input id="winMoveNum" type="number" min="1" max="1000" step="1" value="30" /></div>
           </div>
           <div class="control">
@@ -1059,6 +1079,19 @@
     bindPair(els.alpha, els.alphaNum, () => updateLimit());
     els.probLock.addEventListener('change', () => updateLimit());
     els.decayOn.addEventListener('change', () => updateLimit());
+
+    // 물음표 툴팁: 모바일에서는 탭으로 열고 닫기
+    document.querySelectorAll('.tip').forEach(tip => {
+      tip.addEventListener('click', e => {
+        e.stopPropagation();
+        const wasOpen = tip.classList.contains('open');
+        document.querySelectorAll('.tip.open').forEach(t => t.classList.remove('open'));
+        if (!wasOpen) tip.classList.add('open');
+      });
+    });
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.tip.open').forEach(t => t.classList.remove('open'));
+    });
 
     els.limitChart.addEventListener('pointermove', e => limitReadoutAt(e.clientX));
     els.limitChart.addEventListener('pointerdown', e => limitReadoutAt(e.clientX));
