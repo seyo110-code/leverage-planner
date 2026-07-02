@@ -283,6 +283,7 @@
           <label><span>계좌 기준 허용 손실</span><span class="val" id="riskLabel"></span></label>
           <div class="inputRow"><input id="risk" type="range" min="0.1" max="20" step="0.1" value="2" /><input id="riskNum" type="number" min="0.1" max="100" step="0.1" value="2" /></div>
           <div class="hint">이번 거래가 손절로 끝났을 때 계좌 전체에서 잃어도 되는 최대 비율. 보통 1~2%.</div>
+          <div class="hint" id="riskHint" style="color:var(--gold);"></div>
         </div>
 
         <div class="control">
@@ -371,6 +372,7 @@
       take: $('take'), takeNum: $('takeNum'), takeLabel: $('takeLabel'),
       win: $('win'), winNum: $('winNum'), winLabel: $('winLabel'),
       balNum: $('balNum'), balLabel: $('balLabel'),
+      riskHint: $('riskHint'),
       hero: $('hero'), heroPct: $('heroPct'), heroAmount: $('heroAmount'), heroSub: $('heroSub'),
       warnings: $('warnings'), metrics: $('metrics'),
       marginChart: $('marginChart'), rrChart: $('rrChart'),
@@ -466,6 +468,10 @@
     function renderLabels(r) {
       els.levLabel.textContent = `${r.lev}x`;
       els.riskLabel.textContent = `-${pct(r.risk)}`;
+      const riskAmount = r.bal > 0 ? ` (${usd(r.bal * r.risk)})` : '';
+      els.riskHint.textContent =
+        `레버리지 ${r.lev}x × 손절폭 ${pct(r.stop)} 기준: 손절되면 거래소 PnL 화면에는 진입금의 -${pct(r.stop * r.lev, 0)}로 찍힙니다. ` +
+        `계좌 -${pct(r.risk)}${riskAmount}를 지키려면 진입금은 계좌의 ${pct(r.allowedMargin)} 이하여야 합니다.`;
       els.stopLabel.textContent = `-${pct(r.stop)}`;
       els.takeLabel.textContent = `+${pct(r.take)}`;
       els.winLabel.textContent = pct(r.p, 0);
