@@ -245,6 +245,7 @@
         <div id="csvResult" hidden>
           <div class="csvControls">
             <label><span>이 날짜 진입분부터</span><input type="date" id="csvFrom" /></label>
+            <label><span>본전 처리 |손익| ≤</span><input type="number" id="csvFlatThr" value="0.5" min="0" step="0.1" style="width:70px;" /><span>USDT</span></label>
             <button class="btn" id="csvApplyBtn">아래 계산기에 적용</button>
             <button class="btn ghost" id="csvClearBtn">다른 파일 열기</button>
           </div>
@@ -252,7 +253,7 @@
           <div class="metrics" id="csvMetrics"></div>
           <div class="metrics" id="csvHoldMetrics"></div>
           <div class="warnings" id="csvDiag"></div>
-          <div class="hint">전략을 바꾼 시점이 있다면 그 날짜부터만 계산하세요 — 옛 방식의 기록이 섞이면 지금 실력이 왜곡됩니다. 수수료·펀딩비가 PnL에 완전히 반영되지 않았다면 실제 성적은 이보다 나쁩니다.</div>
+          <div class="hint">전략을 바꾼 시점이 있다면 그 날짜부터만 계산하세요 — 옛 방식의 기록이 섞이면 지금 실력이 왜곡됩니다. 본전 기준은 수수료·스프레드 수준의 미세 손익을 무승부로 걸러내는 값입니다 — 잔돈 수익이 승률과 켈리를 부풀리는 걸 막아주며, 계좌가 커지면 기준도 키우세요. 수수료·펀딩비가 PnL에 완전히 반영되지 않았다면 실제 성적은 이보다 나쁩니다.</div>
         </div>
         <div class="hint" id="csvError" style="color: var(--red);"></div>
       </div>
@@ -1111,7 +1112,7 @@
       zone: $('dropZone'), file: $('csvFile'), result: $('csvResult'),
       from: $('csvFrom'), apply: $('csvApplyBtn'), clear: $('csvClearBtn'),
       verdict: $('csvVerdict'), metrics: $('csvMetrics'), error: $('csvError'),
-      holdMetrics: $('csvHoldMetrics'), diag: $('csvDiag'),
+      holdMetrics: $('csvHoldMetrics'), diag: $('csvDiag'), flatThr: $('csvFlatThr'),
     };
     let csvTrades = null; // 파싱된 전체 기록 (메모리에만 보관)
     let csvCurrent = null; // 날짜 필터 적용된 현재 통계
@@ -1170,12 +1171,13 @@
       return { trades };
     }
 
-    function csvStats(fromDate) {
+    function csvStats(fromDate, flatThr = 0) {
       const rows = fromDate ? csvTrades.filter(t => !t.opened || t.opened >= fromDate) : csvTrades;
       const n = rows.length;
       if (!n) return null;
-      const wins = rows.filter(t => t.pnl > 0);
-      const losses = rows.filter(t => t.pnl < 0);
+      // |손익|이 본전 기준 이하인 거래는 무승부(스프레드·수수료 노이즈)로 분류
+      const wins = rows.filter(t => t.pnl > flatThr);
+      const losses = rows.filter(t => t.pnl < -flatThr);
       const flats = n - wins.length - losses.length;
       const sum = a => a.reduce((s, t) => s + t.pnl, 0);
       const avg = (a, f) => a.length ? a.reduce((s, t) => s + f(t), 0) / a.length : 0;
@@ -1268,7 +1270,8 @@
     }
 
     function renderCsv() {
-      const s = csvStats(csvEls.from.value);
+      const thr = Math.max(0, Number(csvEls.flatThr.value) || 0);
+      const s = csvStats(csvEls.from.value, thr);
       csvCurrent = s;
       if (!s) {
         csvEls.verdict.innerHTML = '이 날짜 이후 거래가 없습니다. 날짜를 앞으로 당겨보세요.';
@@ -1349,6 +1352,7 @@
     ['dragleave', 'drop'].forEach(ev => csvEls.zone.addEventListener(ev, e => { e.preventDefault(); csvEls.zone.classList.remove('drag'); }));
     csvEls.zone.addEventListener('drop', e => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) loadCsvFile(f); });
     csvEls.from.addEventListener('change', renderCsv);
+    csvEls.flatThr.addEventListener('input', () => { if (csvTrades) renderCsv(); });
     csvEls.apply.addEventListener('click', applyCsvToCalculators);
     csvEls.clear.addEventListener('click', () => {
       csvTrades = null; csvCurrent = null;
