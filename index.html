@@ -1286,10 +1286,10 @@
       csvEls.metrics.innerHTML = [
         metricCard('거래 수', `${s.n}건`, '', `승 ${s.wins} · 패 ${s.losses} · 본전 ${s.flats}`),
         metricCard('승 / 무 / 패', `<span class="good">${pct(s.wins / s.n, 0)}</span> · ${pct(s.flats / s.n, 0)} · <span class="bad">${pct(s.losses / s.n, 0)}</span>`, '', `본전 제외 승률 ${pct(s.p, 1)}`),
-        metricCard('총 손익', `${s.total >= 0 ? '+' : ''}${s.total.toFixed(2)}`, s.total >= 0 ? 'good' : 'bad', `+${s.grossWin.toFixed(2)} / -${s.grossLoss.toFixed(2)}`),
+        metricCard('총 손익', `${s.total >= 0 ? '+' : ''}${s.total.toFixed(2)}`, s.total >= 0 ? 'good' : 'bad', `거래당 기대값 ${s.total >= 0 ? '+' : ''}${(s.total / s.n).toFixed(2)} (무승부 포함)`),
         metricCard('Profit Factor', fin(s.pf, x => x.toFixed(2)), s.pf >= 1 ? 'good' : 'bad', '총수익 ÷ 총손실'),
-        metricCard('평균 수익', `+${s.avgWin.toFixed(2)}`, 'good', `가격 기준 +${pct(s.avgWinMove, 2)}`),
-        metricCard('평균 손실', `-${s.avgLoss.toFixed(2)}`, 'bad', `가격 기준 -${pct(s.avgLossMove, 2)}`),
+        metricCard('평균 수익 (무승부 제외)', `+${s.avgWin.toFixed(2)}`, 'good', `가격 기준 +${pct(s.avgWinMove, 2)}`),
+        metricCard('평균 손실 (무승부 제외)', `-${s.avgLoss.toFixed(2)}`, 'bad', `가격 기준 -${pct(s.avgLossMove, 2)}`),
         metricCard('손익비', fin(s.rr, x => `${x.toFixed(2)}R`), s.rr >= (1 - s.p) / Math.max(s.p, 0.01) ? 'good' : 'bad', '평균 수익 ÷ 평균 손실'),
         metricCard('켈리 f', `${s.kelly >= 0 ? '+' : ''}${(s.kelly * 100).toFixed(1)}%`, s.kelly > 0 ? 'good' : 'bad', s.kelly > 0 ? `하프켈리 ${(s.kelly * 50).toFixed(1)}%` : '기대값 음수'),
       ].join('');
