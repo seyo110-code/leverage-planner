@@ -234,7 +234,7 @@
     <section class="csvSection" aria-label="매매 기록으로 켈리 계산">
       <div class="secHead">
         <h2>내 기록에서 시작 — <b>CSV로 켈리 계산</b></h2>
-        <p>느낌이 아니라 기록입니다. 바이낸스 선물 Position History CSV를 올리면 승률·손익비·켈리 비율을 계산하고, 아래 계산기들에 실측값을 채워줍니다. 파일은 브라우저 안에서만 처리되며 어디에도 전송·저장되지 않습니다.</p>
+        <p>느낌이 아니라 기록입니다. 바이낸스 선물 Position History CSV를 올리면 승률·손익비·켈리 비율을 계산하고, 아래 계산기들에 실측값을 채워줍니다. 파일은 브라우저 안에서만 처리되며 서버로는 아무것도 전송되지 않습니다. 분석한 기록은 이 브라우저에 저장되어 다음 방문 때 자동으로 열립니다.</p>
       </div>
       <div class="card">
         <div class="dropZone" id="dropZone" role="button" tabindex="0" aria-label="CSV 파일 선택">
@@ -247,8 +247,10 @@
             <label><span>이 날짜 진입분부터</span><input type="date" id="csvFrom" /></label>
             <label><span>본전 처리 |손익| ≤</span><input type="number" id="csvFlatThr" value="0.5" min="0" step="0.1" style="width:70px;" /><span>USDT</span></label>
             <button class="btn" id="csvApplyBtn">아래 계산기에 적용</button>
-            <button class="btn ghost" id="csvClearBtn">다른 파일 열기</button>
+            <button class="btn ghost" id="csvShareBtn">📱 폰으로 보낼 링크 복사</button>
+            <button class="btn ghost" id="csvClearBtn">기록 지우기</button>
           </div>
+          <div class="hint" id="csvSavedNote" style="margin-bottom:10px;"></div>
           <div class="readout" id="csvVerdict"></div>
           <div class="metrics" id="csvMetrics"></div>
           <div class="metrics" id="csvHoldMetrics"></div>
@@ -1113,6 +1115,7 @@
       from: $('csvFrom'), apply: $('csvApplyBtn'), clear: $('csvClearBtn'),
       verdict: $('csvVerdict'), metrics: $('csvMetrics'), error: $('csvError'),
       holdMetrics: $('csvHoldMetrics'), diag: $('csvDiag'), flatThr: $('csvFlatThr'),
+      share: $('csvShareBtn'), savedNote: $('csvSavedNote'),
     };
     let csvTrades = null; // 파싱된 전체 기록 (메모리에만 보관)
     let csvCurrent = null; // 날짜 필터 적용된 현재 통계
@@ -1330,19 +1333,131 @@
       reader.onload = () => {
         const { trades, error } = parseTradeCsv(String(reader.result));
         if (error) { csvEls.error.textContent = error; return; }
-        csvTrades = trades;
-        const dates = trades.map(t => t.opened).filter(Boolean).sort();
-        if (dates.length) {
-          csvEls.from.min = dates[0];
-          csvEls.from.max = dates[dates.length - 1];
-          csvEls.from.value = '';
-        }
-        csvEls.zone.hidden = true;
-        csvEls.result.hidden = false;
-        renderCsv();
+        adoptTrades(trades, 'CSV 파일', '', undefined, Date.now());
       };
       reader.onerror = () => { csvEls.error.textContent = '파일을 읽지 못했습니다.'; };
       reader.readAsText(file);
+    }
+
+    /* 저장·공유: 브라우저(localStorage) 자동 저장 + 기록을 압축해 URL 해시에 담는 공유 링크.
+       서버는 없다 — 데이터는 이 브라우저와 링크 안에만 존재한다. */
+
+    const CSV_STORE_KEY = 'leverage-planner-csv-v1';
+    let csvUploadedAt = 0;
+
+    function packTrades(from, thr) {
+      const syms = [...new Set(csvTrades.map(t => t.sym))];
+      return JSON.stringify({
+        v: 1, up: csvUploadedAt, from: from || '', thr: String(thr ?? ''),
+        syms,
+        t: csvTrades.map(t => [
+          Math.round(t.pnl * 10000) / 10000,
+          Math.round(t.move * 1e6) / 1e6,
+          t.openedD ? Math.round(t.openedD.getTime() / 1000) : 0,
+          t.closedD ? Math.round(t.closedD.getTime() / 1000) : 0,
+          syms.indexOf(t.sym), t.side === 'S' ? 1 : 0,
+        ]),
+      });
+    }
+
+    function unpackTrades(json) {
+      const d = JSON.parse(json);
+      if (!d || d.v !== 1 || !Array.isArray(d.t) || !Array.isArray(d.syms)) return null;
+      const pad = x => String(x).padStart(2, '0');
+      const trades = d.t.map(r => {
+        const openedD = r[2] ? new Date(r[2] * 1000) : null;
+        const closedD = r[3] ? new Date(r[3] * 1000) : null;
+        return {
+          pnl: r[0], move: r[1], openedD, closedD,
+          opened: openedD ? `${openedD.getFullYear()}-${pad(openedD.getMonth() + 1)}-${pad(openedD.getDate())}` : '',
+          sym: d.syms[r[4]] || '', side: r[5] ? 'S' : 'L',
+          holdMin: openedD && closedD && closedD >= openedD ? (closedD - openedD) / 60000 : NaN,
+        };
+      });
+      return { trades, from: d.from || '', thr: d.thr, up: d.up || 0 };
+    }
+
+    function b64uEnc(bytes) {
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    function b64uDec(s) {
+      return Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    }
+    const gzip = async str => new Uint8Array(await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    const gunzip = async bytes => new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+
+    function saveCsvStore() {
+      if (!csvTrades) return;
+      try { localStorage.setItem(CSV_STORE_KEY, packTrades(csvEls.from.value, csvEls.flatThr.value)); } catch (_) {}
+    }
+
+    function renderSavedNote(source) {
+      const when = csvUploadedAt ? new Date(csvUploadedAt).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) : '';
+      csvEls.savedNote.textContent =
+        `${source}에서 ${csvTrades.length}건 불러옴${when ? ` (${when} 업로드)` : ''} · 이 브라우저에 자동 저장됩니다. ` +
+        `"폰으로 보낼 링크 복사"를 눌러 카톡 나에게 보내기 등으로 옮기면 다른 기기에서도 열립니다 — 링크 자체에 기록이 압축돼 들어가므로 남에게는 보내지 마세요.`;
+    }
+
+    function adoptTrades(trades, source, from, thr, up) {
+      csvTrades = trades;
+      csvUploadedAt = up || Date.now();
+      const dates = trades.map(t => t.opened).filter(Boolean).sort();
+      if (dates.length) {
+        csvEls.from.min = dates[0];
+        csvEls.from.max = dates[dates.length - 1];
+      }
+      csvEls.from.value = from || '';
+      if (thr !== undefined && thr !== '' && !Number.isNaN(Number(thr))) csvEls.flatThr.value = thr;
+      csvEls.zone.hidden = true;
+      csvEls.result.hidden = false;
+      renderSavedNote(source);
+      renderCsv();
+      saveCsvStore();
+    }
+
+    async function loadFromHash() {
+      const m = location.hash.match(/^#d=([zj])([A-Za-z0-9_-]+)$/);
+      if (!m) return false;
+      try {
+        const bytes = b64uDec(m[2]);
+        const json = m[1] === 'z' ? await gunzip(bytes) : new TextDecoder().decode(bytes);
+        const u = unpackTrades(json);
+        if (!u) return false;
+        adoptTrades(u.trades, '공유 링크', u.from, u.thr, u.up);
+        return true;
+      } catch (_) { return false; }
+    }
+
+    function loadFromStore() {
+      try {
+        const json = localStorage.getItem(CSV_STORE_KEY);
+        if (!json) return false;
+        const u = unpackTrades(json);
+        if (!u) return false;
+        adoptTrades(u.trades, '저장된 기록', u.from, u.thr, u.up);
+        return true;
+      } catch (_) { return false; }
+    }
+
+    async function copyShareLink() {
+      if (!csvTrades) return;
+      const json = packTrades(csvEls.from.value, csvEls.flatThr.value);
+      let payload;
+      if (typeof CompressionStream !== 'undefined') payload = 'z' + b64uEnc(await gzip(json));
+      else payload = 'j' + b64uEnc(new TextEncoder().encode(json));
+      const url = `${location.origin}${location.pathname}#d=${payload}`;
+      const old = csvEls.share.textContent;
+      try {
+        await navigator.clipboard.writeText(url);
+        csvEls.share.textContent = '복사됨 ✓';
+      } catch (_) {
+        window.prompt('아래 링크를 복사하세요', url);
+        csvEls.share.textContent = old;
+        return;
+      }
+      setTimeout(() => { csvEls.share.textContent = old; }, 2000);
     }
 
     csvEls.zone.addEventListener('click', () => csvEls.file.click());
@@ -1351,16 +1466,22 @@
     ['dragover', 'dragenter'].forEach(ev => csvEls.zone.addEventListener(ev, e => { e.preventDefault(); csvEls.zone.classList.add('drag'); }));
     ['dragleave', 'drop'].forEach(ev => csvEls.zone.addEventListener(ev, e => { e.preventDefault(); csvEls.zone.classList.remove('drag'); }));
     csvEls.zone.addEventListener('drop', e => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) loadCsvFile(f); });
-    csvEls.from.addEventListener('change', renderCsv);
-    csvEls.flatThr.addEventListener('input', () => { if (csvTrades) renderCsv(); });
+    csvEls.from.addEventListener('change', () => { renderCsv(); saveCsvStore(); });
+    csvEls.flatThr.addEventListener('input', () => { if (csvTrades) { renderCsv(); saveCsvStore(); } });
     csvEls.apply.addEventListener('click', applyCsvToCalculators);
+    csvEls.share.addEventListener('click', copyShareLink);
     csvEls.clear.addEventListener('click', () => {
-      csvTrades = null; csvCurrent = null;
+      csvTrades = null; csvCurrent = null; csvUploadedAt = 0;
       csvEls.result.hidden = true; csvEls.zone.hidden = false;
       csvEls.file.value = '';
-      csvEls.metrics.innerHTML = ''; csvEls.verdict.innerHTML = '';
+      csvEls.metrics.innerHTML = ''; csvEls.verdict.innerHTML = ''; csvEls.savedNote.textContent = '';
       renderCsvDiag(null);
+      try { localStorage.removeItem(CSV_STORE_KEY); } catch (_) {}
+      if (location.hash.startsWith('#d=')) history.replaceState(null, '', location.pathname + location.search);
     });
+
+    // 시작 시: 공유 링크(#d=)가 있으면 그걸, 없으면 이 브라우저에 저장된 기록을 복원
+    (async () => { if (!(await loadFromHash())) loadFromStore(); })();
 
     /* ---------- wiring ---------- */
 
