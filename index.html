@@ -206,8 +206,10 @@
     .btn:hover { filter: brightness(1.08); }
     .btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
     .btn.ghost:hover { color: var(--ink); border-color: var(--muted); filter: none; }
-    #csvMetrics { grid-template-columns: repeat(4, 1fr); }
-    @media (max-width: 720px) { #csvMetrics { grid-template-columns: repeat(2, 1fr); } }
+    #csvMetrics, #csvHoldMetrics { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 720px) { #csvMetrics, #csvHoldMetrics { grid-template-columns: repeat(2, 1fr); } }
+    #csvDiag { margin-top: 2px; }
+    .warn.goodNote { border-color: rgba(45, 212, 191, .4); background: rgba(45, 212, 191, .07); color: #99f6e4; }
 
     footer { margin-top: 26px; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
   </style>
@@ -239,6 +241,8 @@
           </div>
           <div class="readout" id="csvVerdict"></div>
           <div class="metrics" id="csvMetrics"></div>
+          <div class="metrics" id="csvHoldMetrics"></div>
+          <div class="warnings" id="csvDiag"></div>
           <div class="hint">전략을 바꾼 시점이 있다면 그 날짜부터만 계산하세요 — 옛 방식의 기록이 섞이면 지금 실력이 왜곡됩니다. 수수료·펀딩비가 PnL에 완전히 반영되지 않았다면 실제 성적은 이보다 나쁩니다.</div>
         </div>
         <div class="hint" id="csvError" style="color: var(--red);"></div>
@@ -1097,6 +1101,7 @@
       zone: $('dropZone'), file: $('csvFile'), result: $('csvResult'),
       from: $('csvFrom'), apply: $('csvApplyBtn'), clear: $('csvClearBtn'),
       verdict: $('csvVerdict'), metrics: $('csvMetrics'), error: $('csvError'),
+      holdMetrics: $('csvHoldMetrics'), diag: $('csvDiag'),
     };
     let csvTrades = null; // 파싱된 전체 기록 (메모리에만 보관)
     let csvCurrent = null; // 날짜 필터 적용된 현재 통계
@@ -1117,15 +1122,22 @@
       const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim());
       if (lines.length < 2) return { error: '데이터 행이 없습니다.' };
       const header = splitCsvLine(lines[0]).map(h => h.toLowerCase());
-      const col = names => header.findIndex(h => names.some(n => h.includes(n)));
+      // 정확히 일치하는 열 우선 — 'Closed'가 'Closed Vol.'에 잘못 걸리지 않도록
+      const col = names => {
+        const exact = header.findIndex(h => names.includes(h));
+        return exact >= 0 ? exact : header.findIndex(h => names.some(n => h.includes(n)));
+      };
       const iSide = col(['position side', 'side']);
       const iEntry = col(['entry price']);
       const iClose = col(['avg. close price', 'close price']);
       const iPnl = col(['closing pnl', 'realized pnl', 'pnl']);
       const iOpened = col(['opened', 'open time']);
+      const iClosed = col(['closed', 'close time']);
+      const iSym = col(['symbol']);
       if (iEntry < 0 || iClose < 0 || iPnl < 0) {
         return { error: '필요한 열(Entry Price, Close Price, PNL)을 찾지 못했습니다. 바이낸스 Position History 형식인지 확인하세요.' };
       }
+      const ts = v => { const d = new Date(String(v || '').replace(' ', 'T')); return Number.isNaN(d.getTime()) ? null : d; };
       const trades = [];
       for (let i = 1; i < lines.length; i++) {
         const c = splitCsvLine(lines[i]);
@@ -1133,7 +1145,16 @@
         if (!Number.isFinite(entry) || !Number.isFinite(close) || !Number.isFinite(pnl) || entry <= 0) continue;
         const short = iSide >= 0 && /short/i.test(c[iSide]);
         const move = (close - entry) / entry * (short ? -1 : 1);
-        trades.push({ pnl, move, opened: iOpened >= 0 ? c[iOpened].slice(0, 10) : '' });
+        const openedD = iOpened >= 0 ? ts(c[iOpened]) : null;
+        const closedD = iClosed >= 0 ? ts(c[iClosed]) : null;
+        trades.push({
+          pnl, move,
+          opened: iOpened >= 0 ? c[iOpened].slice(0, 10) : '',
+          sym: iSym >= 0 ? c[iSym] : '', side: short ? 'S' : 'L',
+          openedD, closedD,
+          // 음수(열 오인식 등 데이터 이상)는 시간 없음으로 처리
+          holdMin: openedD && closedD && closedD >= openedD ? (closedD - openedD) / 60000 : NaN,
+        });
       }
       if (!trades.length) return { error: '읽을 수 있는 거래가 없습니다.' };
       return { trades };
@@ -1159,8 +1180,81 @@
         n, wins: wins.length, losses: losses.length, flats,
         total: sum(rows), grossWin, grossLoss,
         pf: grossLoss > 0 ? grossWin / grossLoss : Infinity,
-        avgWin, avgLoss, avgWinMove, avgLossMove, p, rr, kelly,
+        avgWin, avgLoss, avgWinMove, avgLossMove, p, rr, kelly, rows,
       };
+    }
+
+    // 행동 진단: 보유시간별 성적, 손절 직후 재진입 연쇄(틸트), 방향 뒤집기
+    function csvDiagnostics(rows) {
+      const timed = rows.filter(t => Number.isFinite(t.holdMin) && t.openedD && t.closedD);
+      if (timed.length < 10) return null;
+      const sum = a => a.reduce((s, t) => s + t.pnl, 0);
+      const avg = (a, f) => a.length ? a.reduce((s, t) => s + f(t), 0) / a.length : 0;
+
+      const buckets = [
+        { lo: 0, hi: 10, name: '10분 미만' },
+        { lo: 10, hi: 60, name: '10분~1시간' },
+        { lo: 60, hi: 600, name: '1~10시간' },
+        { lo: 600, hi: Infinity, name: '10시간 이상' },
+      ].map(b => {
+        const g = timed.filter(t => t.holdMin >= b.lo && t.holdMin < b.hi);
+        return { ...b, n: g.length, sum: sum(g), winRate: g.length ? g.filter(t => t.pnl > 0).length / g.length : 0 };
+      });
+
+      const short = timed.filter(t => t.holdMin < 10);
+      const shortWins = short.filter(t => t.pnl > 0), shortLosses = short.filter(t => t.pnl < 0);
+      const shortStat = {
+        n: short.length, sum: sum(short),
+        avgWinMove: avg(shortWins, t => t.move), avgLossMove: -avg(shortLosses, t => t.move),
+      };
+
+      const sorted = [...timed].sort((a, b) => a.openedD - b.openedD);
+      let chains = 0, chainPnl = 0, maxChain = 0, cur = 0, curPnl = 0;
+      let flipN = 0, flipLoss = 0;
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1], t = sorted[i];
+        const gap = (t.openedD - prev.closedD) / 1000;
+        if (t.sym && t.sym === prev.sym && gap >= 0 && gap < 60 && prev.pnl < 0) {
+          cur++; curPnl += t.pnl;
+        } else {
+          if (cur >= 2) { chains++; chainPnl += curPnl; maxChain = Math.max(maxChain, cur); }
+          cur = 0; curPnl = 0;
+        }
+        if (t.sym && t.sym === prev.sym && gap < 120 && prev.pnl < 0 && t.side !== prev.side) {
+          flipN++; if (t.pnl < 0) flipLoss++;
+        }
+      }
+      if (cur >= 2) { chains++; chainPnl += curPnl; maxChain = Math.max(maxChain, cur); }
+
+      return { buckets, shortStat, chains, chainPnl, maxChain, flipN, flipLoss, total: sum(timed) };
+    }
+
+    function renderCsvDiag(d) {
+      if (!d) { csvEls.holdMetrics.innerHTML = ''; csvEls.diag.innerHTML = ''; return; }
+      const money = x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}`;
+      csvEls.holdMetrics.innerHTML = d.buckets.map(b =>
+        metricCard(`보유 ${b.name}`, b.n ? money(b.sum) : '—', b.n ? (b.sum >= 0 ? 'good' : 'bad') : '', b.n ? `${b.n}건 · 승률 ${pct(b.winRate, 0)}` : '거래 없음')
+      ).join('');
+
+      const out = [];
+      const s = d.shortStat;
+      if (s.n >= 10 && s.sum < 0) {
+        const flip = s.avgLossMove > s.avgWinMove
+          ? ` 이 구간에서 수익은 평균 +${pct(s.avgWinMove, 2)}에서 끊기고 손실은 -${pct(s.avgLossMove, 2)}까지 갑니다 — "손실을 짧게 끊는" 매매라면 이 부호가 반대여야 합니다.`
+          : '';
+        out.push(`<div class="warn">10분 미만 초단타 ${s.n}건의 합계가 <b>${money(s.sum)}</b>입니다. 이 구간이 없었다면 총손익은 ${money(d.total)}이 아니라 <b>${money(d.total - s.sum)}</b>였습니다.${flip}</div>`);
+      }
+      if (d.chains >= 2) {
+        out.push(`<div class="warn critical"><b>틸트 시그널:</b> 손절 직후 60초 안에 같은 종목 재진입이 2회 이상 이어진 연쇄가 <b>${d.chains}회</b>(최장 ${d.maxChain}연속), 연쇄 구간 합계 <b>${money(d.chainPnl)}</b>. 손절 후 같은 종목은 15분 재진입 금지 룰을 권합니다.</div>`);
+      }
+      if (d.flipN >= 5) {
+        out.push(`<div class="warn">손절 후 2분 안에 방향을 뒤집은 매매가 ${d.flipN}회, 그중 ${d.flipLoss}회가 또 손절(${pct(d.flipLoss / d.flipN, 0)}). 뒤집기는 분석이 아니라 반응입니다 — 동전 던지기에 수수료를 내는 것과 같습니다.</div>`);
+      }
+      const best = d.buckets.filter(b => b.n >= 5).sort((a, b) => b.sum - a.sum)[0];
+      if (best && best.sum > 0) {
+        out.push(`<div class="warn goodNote">성적이 가장 좋은 보유시간대는 <b>${best.name}</b>입니다 (${best.n}건, 승률 ${pct(best.winRate, 0)}, ${money(best.sum)}). 엣지가 있는 시간대에 머무르세요.</div>`);
+      }
+      csvEls.diag.innerHTML = out.join('');
     }
 
     function renderCsv() {
@@ -1169,6 +1263,7 @@
       if (!s) {
         csvEls.verdict.innerHTML = '이 날짜 이후 거래가 없습니다. 날짜를 앞으로 당겨보세요.';
         csvEls.metrics.innerHTML = '';
+        renderCsvDiag(null);
         return;
       }
       const fin = (x, f) => Number.isFinite(x) ? f(x) : '∞';
@@ -1182,6 +1277,7 @@
         metricCard('손익비', fin(s.rr, x => `${x.toFixed(2)}R`), s.rr >= (1 - s.p) / Math.max(s.p, 0.01) ? 'good' : 'bad', '평균 수익 ÷ 평균 손실'),
         metricCard('켈리 f', `${s.kelly >= 0 ? '+' : ''}${(s.kelly * 100).toFixed(1)}%`, s.kelly > 0 ? 'good' : 'bad', s.kelly > 0 ? `하프켈리 ${(s.kelly * 50).toFixed(1)}%` : '기대값 음수'),
       ].join('');
+      renderCsvDiag(csvDiagnostics(s.rows));
       const sample = s.n < 30 ? ` <b>표본이 ${s.n}건뿐이라 신뢰도가 낮습니다 — 참고용으로만 보세요.</b>` : '';
       csvEls.verdict.innerHTML = s.kelly > 0
         ? `이 기록 기준 켈리 f = <b>+${(s.kelly * 100).toFixed(1)}%</b>. 실전 상한은 하프켈리 <b>${(s.kelly * 50).toFixed(1)}%</b>가 표준입니다. "아래 계산기에 적용"을 누르면 승률 ${pct(s.p, 0)}, 평균 수익률 +${pct(s.avgWinMove, 2)}, 평균 손실률 -${pct(s.avgLossMove, 2)}가 입력칸에 들어갑니다.${sample}`
@@ -1248,6 +1344,8 @@
       csvTrades = null; csvCurrent = null;
       csvEls.result.hidden = true; csvEls.zone.hidden = false;
       csvEls.file.value = '';
+      csvEls.metrics.innerHTML = ''; csvEls.verdict.innerHTML = '';
+      renderCsvDiag(null);
     });
 
     /* ---------- wiring ---------- */
