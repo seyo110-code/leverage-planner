@@ -1285,7 +1285,7 @@
       const fin = (x, f) => Number.isFinite(x) ? f(x) : '∞';
       csvEls.metrics.innerHTML = [
         metricCard('거래 수', `${s.n}건`, '', `승 ${s.wins} · 패 ${s.losses} · 본전 ${s.flats}`),
-        metricCard('승률 (본전 제외)', pct(s.p, 1), s.p >= 0.5 ? 'good' : '', ''),
+        metricCard('승 / 무 / 패', `<span class="good">${pct(s.wins / s.n, 0)}</span> · ${pct(s.flats / s.n, 0)} · <span class="bad">${pct(s.losses / s.n, 0)}</span>`, '', `본전 제외 승률 ${pct(s.p, 1)}`),
         metricCard('총 손익', `${s.total >= 0 ? '+' : ''}${s.total.toFixed(2)}`, s.total >= 0 ? 'good' : 'bad', `+${s.grossWin.toFixed(2)} / -${s.grossLoss.toFixed(2)}`),
         metricCard('Profit Factor', fin(s.pf, x => x.toFixed(2)), s.pf >= 1 ? 'good' : 'bad', '총수익 ÷ 총손실'),
         metricCard('평균 수익', `+${s.avgWin.toFixed(2)}`, 'good', `가격 기준 +${pct(s.avgWinMove, 2)}`),
