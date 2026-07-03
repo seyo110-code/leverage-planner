@@ -38,6 +38,12 @@
       color: var(--teal); text-decoration: none;
     }
     .brand::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--teal); box-shadow: 0 0 12px var(--teal); }
+    .brandRow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .topBack {
+      color: var(--teal); font-weight: 800; font-size: 12.5px; text-decoration: none;
+      border: 1px solid rgba(45, 212, 191, .4); border-radius: 10px; padding: 7px 13px;
+    }
+    .topBack:hover { background: rgba(45, 212, 191, .08); }
     h1 {
       margin: 10px 0 8px;
       font-size: clamp(26px, 5.4vw, 40px);
@@ -109,7 +115,10 @@
 <body>
   <div class="wrap">
     <header>
-      <a class="brand" href="./">Leverage Planner</a>
+      <div class="brandRow">
+        <a class="brand" href="./">Leverage Planner</a>
+        <a class="topBack" href="./">← 계산기로 돌아가기</a>
+      </div>
       <h1>매매 개선 규칙 — <b>기록이 말해준 것들</b></h1>
       <p class="lead">느낌이 아니라 한 달치 실제 청산 기록 분석에서 나온 규칙들입니다. 공통 결론은 하나 — <b>문제는 승률이 아니라, 이길 때 조금 벌고 질 때 크게 잃는 비대칭</b>이었습니다.</p>
     </header>
