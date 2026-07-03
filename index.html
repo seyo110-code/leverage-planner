@@ -181,6 +181,34 @@
     }
     details.explain .body b { color: var(--ink); }
 
+    /* CSV 기록 분석 */
+    .csvSection { margin-bottom: 34px; }
+    .dropZone {
+      border: 1.5px dashed var(--line); border-radius: 16px;
+      padding: 26px 18px; text-align: center; cursor: pointer;
+      color: var(--muted); font-size: 13.5px; font-weight: 600; line-height: 1.6;
+      transition: border-color .15s, background .15s;
+    }
+    .dropZone b { color: var(--teal); }
+    .dropZone:hover, .dropZone.drag { border-color: var(--teal); background: rgba(45, 212, 191, .05); }
+    .csvControls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .csvControls label { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; }
+    input[type="date"] {
+      padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line);
+      background: #0d1119; color: var(--ink); font-weight: 700; font-size: 13px;
+      font-family: inherit; color-scheme: dark;
+    }
+    .btn {
+      padding: 9px 16px; border-radius: 10px; border: 1px solid transparent;
+      background: var(--teal); color: #04211c; font-weight: 800; font-size: 13px;
+      font-family: inherit; cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
+    .btn.ghost:hover { color: var(--ink); border-color: var(--muted); filter: none; }
+    #csvMetrics { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 720px) { #csvMetrics { grid-template-columns: repeat(2, 1fr); } }
+
     footer { margin-top: 26px; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
   </style>
 </head>
@@ -191,6 +219,31 @@
       <h1>최적 레버리지를 찾고,<br><b>진입금까지 역산한다</b></h1>
       <p class="lead">본전·손실·수익 분포에서 로그 최적 레버리지를 먼저 찾고, 정해진 레버리지에서 계좌가 수학적으로 망가지지 않는 진입금 비율을 역산합니다.</p>
     </header>
+
+    <section class="csvSection" aria-label="매매 기록으로 켈리 계산">
+      <div class="secHead">
+        <h2>내 기록에서 시작 — <b>CSV로 켈리 계산</b></h2>
+        <p>느낌이 아니라 기록입니다. 바이낸스 선물 Position History CSV를 올리면 승률·손익비·켈리 비율을 계산하고, 아래 계산기들에 실측값을 채워줍니다. 파일은 브라우저 안에서만 처리되며 어디에도 전송·저장되지 않습니다.</p>
+      </div>
+      <div class="card">
+        <div class="dropZone" id="dropZone" role="button" tabindex="0" aria-label="CSV 파일 선택">
+          CSV 파일을 끌어다 놓거나 <b>클릭해서 선택</b>
+          <div class="hint">바이낸스 앱/웹: 선물 → 주문 내역 → Position History → Export. 다른 거래소 CSV도 같은 열 이름이면 읽힙니다.</div>
+          <input type="file" id="csvFile" accept=".csv,text/csv" hidden />
+        </div>
+        <div id="csvResult" hidden>
+          <div class="csvControls">
+            <label><span>이 날짜 진입분부터</span><input type="date" id="csvFrom" /></label>
+            <button class="btn" id="csvApplyBtn">아래 계산기에 적용</button>
+            <button class="btn ghost" id="csvClearBtn">다른 파일 열기</button>
+          </div>
+          <div class="readout" id="csvVerdict"></div>
+          <div class="metrics" id="csvMetrics"></div>
+          <div class="hint">전략을 바꾼 시점이 있다면 그 날짜부터만 계산하세요 — 옛 방식의 기록이 섞이면 지금 실력이 왜곡됩니다. 수수료·펀딩비가 PnL에 완전히 반영되지 않았다면 실제 성적은 이보다 나쁩니다.</div>
+        </div>
+        <div class="hint" id="csvError" style="color: var(--red);"></div>
+      </div>
+    </section>
 
     <section class="limitSection" aria-label="레버리지 한계 계산">
       <div class="secHead">
@@ -224,12 +277,12 @@
           <hr class="divider" />
           <div class="control">
             <label><span>손실 시 평균 손실률<span class="tip" tabindex="0" role="button" aria-label="손실률 설명">?<span class="tipBox">계획한 손절폭이 아니라 <b>매매 기록의 통계</b>입니다. 손실로 끝난 거래들이 평균적으로 가격 기준 몇 %에서 끝났는지를 넣습니다.<br><br>손절가에 정확히 나가지는 경우는 드뭅니다 — 슬리피지로 더 밀리거나, 손절가 전에 판단으로 먼저 나오거나, 갭으로 뚫리기도 하죠. 그래서 계획값이 아닌 <b>실제 평균</b>이어야 합니다.<br><br>레버리지를 곱하기 전 <b>1배 기준 가격 변동</b>입니다. 계좌 손실이 아닙니다 — 20배에서 가격 -4%면 진입금 기준 -80%지만, 여기 넣는 값은 4%입니다.<br><br>주의: 평균은 꼬리 손실을 숨깁니다. 같은 평균 -4%라도 "-2% 넷 + -12% 하나"가 복리에는 더 나쁘므로, 계산 결과는 낙관적 상한으로 보세요.</span></span></span><span class="val bad" id="lossMoveLabel"></span></label>
-            <div class="inputRow"><input id="lossMove" type="range" min="0.5" max="100" step="0.5" value="20" /><input id="lossMoveNum" type="number" min="0.5" max="100" step="0.5" value="20" /></div>
+            <div class="inputRow"><input id="lossMove" type="range" min="0.1" max="100" step="0.1" value="20" /><input id="lossMoveNum" type="number" min="0.1" max="100" step="0.1" value="20" /></div>
             <div class="hint">예: 20번 중 5번 손실, 각 -3/-5/-2/-8/-2%였다면 → 손실 확률 25%, 평균 손실률 4%.</div>
           </div>
           <div class="control">
             <label><span>수익 시 평균 수익률<span class="tip" tabindex="0" role="button" aria-label="수익률 설명">?<span class="tipBox">같은 개념입니다. 수익으로 끝난 거래들이 평균적으로 가격 기준 몇 %에서 끝났는지 — 목표가가 아니라 매매 기록의 실제 평균, 레버리지 곱하기 전 1배 기준.</span></span></span><span class="val good" id="winMoveLabel"></span></label>
-            <div class="inputRow"><input id="winMove" type="range" min="1" max="300" step="1" value="30" /><input id="winMoveNum" type="number" min="1" max="1000" step="1" value="30" /></div>
+            <div class="inputRow"><input id="winMove" type="range" min="0.5" max="300" step="0.5" value="30" /><input id="winMoveNum" type="number" min="0.5" max="1000" step="0.5" value="30" /></div>
           </div>
           <div class="control">
             <label><span>자산 대비 진입금 비율</span><span class="val" id="lmarginLabel"></span></label>
@@ -1037,6 +1090,165 @@
         ? `레버리지 <b>${l.toFixed(1)}x</b> → G(L) = <b>${(g * 100).toFixed(3)}%</b> · 노출 ${pct(exposure, 0)} · 손실 시 계좌 -${pct(s.lossMove * exposure)} · 수익 시 +${pct(s.winMove * exposure)}`
         : `레버리지 ${l.toFixed(1)}x는 손실 한 번에 계좌가 소멸하는 영역입니다.`;
     }
+
+    /* ---------- CSV 기록 → 켈리 ---------- */
+
+    const csvEls = {
+      zone: $('dropZone'), file: $('csvFile'), result: $('csvResult'),
+      from: $('csvFrom'), apply: $('csvApplyBtn'), clear: $('csvClearBtn'),
+      verdict: $('csvVerdict'), metrics: $('csvMetrics'), error: $('csvError'),
+    };
+    let csvTrades = null; // 파싱된 전체 기록 (메모리에만 보관)
+    let csvCurrent = null; // 날짜 필터 적용된 현재 통계
+
+    function splitCsvLine(line) {
+      const out = [];
+      let cur = '', inQ = false;
+      for (const ch of line) {
+        if (ch === '"') inQ = !inQ;
+        else if (ch === ',' && !inQ) { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      out.push(cur);
+      return out.map(s => s.trim());
+    }
+
+    function parseTradeCsv(text) {
+      const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) return { error: '데이터 행이 없습니다.' };
+      const header = splitCsvLine(lines[0]).map(h => h.toLowerCase());
+      const col = names => header.findIndex(h => names.some(n => h.includes(n)));
+      const iSide = col(['position side', 'side']);
+      const iEntry = col(['entry price']);
+      const iClose = col(['avg. close price', 'close price']);
+      const iPnl = col(['closing pnl', 'realized pnl', 'pnl']);
+      const iOpened = col(['opened', 'open time']);
+      if (iEntry < 0 || iClose < 0 || iPnl < 0) {
+        return { error: '필요한 열(Entry Price, Close Price, PNL)을 찾지 못했습니다. 바이낸스 Position History 형식인지 확인하세요.' };
+      }
+      const trades = [];
+      for (let i = 1; i < lines.length; i++) {
+        const c = splitCsvLine(lines[i]);
+        const entry = Number(c[iEntry]), close = Number(c[iClose]), pnl = Number(c[iPnl]);
+        if (!Number.isFinite(entry) || !Number.isFinite(close) || !Number.isFinite(pnl) || entry <= 0) continue;
+        const short = iSide >= 0 && /short/i.test(c[iSide]);
+        const move = (close - entry) / entry * (short ? -1 : 1);
+        trades.push({ pnl, move, opened: iOpened >= 0 ? c[iOpened].slice(0, 10) : '' });
+      }
+      if (!trades.length) return { error: '읽을 수 있는 거래가 없습니다.' };
+      return { trades };
+    }
+
+    function csvStats(fromDate) {
+      const rows = fromDate ? csvTrades.filter(t => !t.opened || t.opened >= fromDate) : csvTrades;
+      const n = rows.length;
+      if (!n) return null;
+      const wins = rows.filter(t => t.pnl > 0);
+      const losses = rows.filter(t => t.pnl < 0);
+      const flats = n - wins.length - losses.length;
+      const sum = a => a.reduce((s, t) => s + t.pnl, 0);
+      const avg = (a, f) => a.length ? a.reduce((s, t) => s + f(t), 0) / a.length : 0;
+      const grossWin = sum(wins), grossLoss = -sum(losses);
+      const avgWin = avg(wins, t => t.pnl), avgLoss = -avg(losses, t => t.pnl);
+      const avgWinMove = avg(wins, t => t.move), avgLossMove = -avg(losses, t => t.move);
+      const decided = wins.length + losses.length;
+      const p = decided ? wins.length / decided : 0;
+      const rr = avgLoss > 0 ? avgWin / avgLoss : Infinity;
+      const kelly = losses.length === 0 ? p : (wins.length === 0 ? -1 : p - (1 - p) / rr);
+      return {
+        n, wins: wins.length, losses: losses.length, flats,
+        total: sum(rows), grossWin, grossLoss,
+        pf: grossLoss > 0 ? grossWin / grossLoss : Infinity,
+        avgWin, avgLoss, avgWinMove, avgLossMove, p, rr, kelly,
+      };
+    }
+
+    function renderCsv() {
+      const s = csvStats(csvEls.from.value);
+      csvCurrent = s;
+      if (!s) {
+        csvEls.verdict.innerHTML = '이 날짜 이후 거래가 없습니다. 날짜를 앞으로 당겨보세요.';
+        csvEls.metrics.innerHTML = '';
+        return;
+      }
+      const fin = (x, f) => Number.isFinite(x) ? f(x) : '∞';
+      csvEls.metrics.innerHTML = [
+        metricCard('거래 수', `${s.n}건`, '', `승 ${s.wins} · 패 ${s.losses} · 본전 ${s.flats}`),
+        metricCard('승률 (본전 제외)', pct(s.p, 1), s.p >= 0.5 ? 'good' : '', ''),
+        metricCard('총 손익', `${s.total >= 0 ? '+' : ''}${s.total.toFixed(2)}`, s.total >= 0 ? 'good' : 'bad', `+${s.grossWin.toFixed(2)} / -${s.grossLoss.toFixed(2)}`),
+        metricCard('Profit Factor', fin(s.pf, x => x.toFixed(2)), s.pf >= 1 ? 'good' : 'bad', '총수익 ÷ 총손실'),
+        metricCard('평균 수익', `+${s.avgWin.toFixed(2)}`, 'good', `가격 기준 +${pct(s.avgWinMove, 2)}`),
+        metricCard('평균 손실', `-${s.avgLoss.toFixed(2)}`, 'bad', `가격 기준 -${pct(s.avgLossMove, 2)}`),
+        metricCard('손익비', fin(s.rr, x => `${x.toFixed(2)}R`), s.rr >= (1 - s.p) / Math.max(s.p, 0.01) ? 'good' : 'bad', '평균 수익 ÷ 평균 손실'),
+        metricCard('켈리 f', `${s.kelly >= 0 ? '+' : ''}${(s.kelly * 100).toFixed(1)}%`, s.kelly > 0 ? 'good' : 'bad', s.kelly > 0 ? `하프켈리 ${(s.kelly * 50).toFixed(1)}%` : '기대값 음수'),
+      ].join('');
+      const sample = s.n < 30 ? ` <b>표본이 ${s.n}건뿐이라 신뢰도가 낮습니다 — 참고용으로만 보세요.</b>` : '';
+      csvEls.verdict.innerHTML = s.kelly > 0
+        ? `이 기록 기준 켈리 f = <b>+${(s.kelly * 100).toFixed(1)}%</b>. 실전 상한은 하프켈리 <b>${(s.kelly * 50).toFixed(1)}%</b>가 표준입니다. "아래 계산기에 적용"을 누르면 승률 ${pct(s.p, 0)}, 평균 수익률 +${pct(s.avgWinMove, 2)}, 평균 손실률 -${pct(s.avgLossMove, 2)}가 입력칸에 들어갑니다.${sample}`
+        : `이 기록 기준 켈리 f는 <b class="bad">${(s.kelly * 100).toFixed(1)}%</b> — 수학적으로는 베팅 금지 구간입니다. 승률(${pct(s.p, 0)}) 대비 손익비(${Number.isFinite(s.rr) ? s.rr.toFixed(2) : '∞'}R)가 부족합니다. 사이즈를 줄이는 것보다 <b>평균 손실을 줄이는 것</b>이 켈리를 양수로 만드는 가장 빠른 길입니다.${sample}`;
+    }
+
+    function setPair(rangeEl, numEl, value) {
+      const step = Number(rangeEl.step) || 1;
+      const v = Math.max(Number(rangeEl.min), Math.min(Number(rangeEl.max), Math.round(value / step) * step));
+      const fixed = v.toFixed(step < 1 ? String(step).split('.')[1].length : 0);
+      rangeEl.value = fixed; numEl.value = fixed;
+    }
+
+    function applyCsvToCalculators() {
+      const s = csvCurrent;
+      if (!s || !(s.wins + s.losses)) return;
+      // 역U자 섹션: 3-갈래 확률 + 평균 변동률
+      const lossPct = Math.round(s.losses / s.n * 100);
+      const winPct = Math.round(s.wins / s.n * 100);
+      els.flatP.value = els.flatPNum.value = Math.max(0, 100 - lossPct - winPct);
+      els.lossP.value = els.lossPNum.value = lossPct;
+      els.winP.value = els.winPNum.value = winPct;
+      setPair(els.lossMove, els.lossMoveNum, s.avgLossMove * 100);
+      setPair(els.winMove, els.winMoveNum, s.avgWinMove * 100);
+      // 진입금 섹션: 승률(본전 제외) + 평균 변동률을 손절/목표폭으로
+      setPair(els.win, els.winNum, s.p * 100);
+      setPair(els.stop, els.stopNum, s.avgLossMove * 100);
+      setPair(els.take, els.takeNum, s.avgWinMove * 100);
+      updateLimit();
+      update();
+      document.querySelector('.limitSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function loadCsvFile(file) {
+      csvEls.error.textContent = '';
+      const reader = new FileReader();
+      reader.onload = () => {
+        const { trades, error } = parseTradeCsv(String(reader.result));
+        if (error) { csvEls.error.textContent = error; return; }
+        csvTrades = trades;
+        const dates = trades.map(t => t.opened).filter(Boolean).sort();
+        if (dates.length) {
+          csvEls.from.min = dates[0];
+          csvEls.from.max = dates[dates.length - 1];
+          csvEls.from.value = '';
+        }
+        csvEls.zone.hidden = true;
+        csvEls.result.hidden = false;
+        renderCsv();
+      };
+      reader.onerror = () => { csvEls.error.textContent = '파일을 읽지 못했습니다.'; };
+      reader.readAsText(file);
+    }
+
+    csvEls.zone.addEventListener('click', () => csvEls.file.click());
+    csvEls.zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); csvEls.file.click(); } });
+    csvEls.file.addEventListener('change', () => { if (csvEls.file.files[0]) loadCsvFile(csvEls.file.files[0]); });
+    ['dragover', 'dragenter'].forEach(ev => csvEls.zone.addEventListener(ev, e => { e.preventDefault(); csvEls.zone.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach(ev => csvEls.zone.addEventListener(ev, e => { e.preventDefault(); csvEls.zone.classList.remove('drag'); }));
+    csvEls.zone.addEventListener('drop', e => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) loadCsvFile(f); });
+    csvEls.from.addEventListener('change', renderCsv);
+    csvEls.apply.addEventListener('click', applyCsvToCalculators);
+    csvEls.clear.addEventListener('click', () => {
+      csvTrades = null; csvCurrent = null;
+      csvEls.result.hidden = true; csvEls.zone.hidden = false;
+      csvEls.file.value = '';
+    });
 
     /* ---------- wiring ---------- */
 
