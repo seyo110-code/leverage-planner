@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>매매 개선 규칙 — 기록이 말해준 것들</title>
+  <meta name="description" content="실제 매매 기록 분석에서 나온 개선 규칙. 승률이 아니라 손익비, 틸트 차단, 보유시간 엣지." />
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #121722;
+      --panel2: #171e2c;
+      --line: #232c3f;
+      --ink: #e8edf5;
+      --muted: #8b95a8;
+      --teal: #2dd4bf;
+      --red: #f87171;
+      --gold: #fbbf24;
+      --indigo: #818cf8;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(60rem 30rem at 85% -10%, rgba(45, 212, 191, .09), transparent),
+        radial-gradient(50rem 26rem at -10% 0%, rgba(129, 140, 248, .08), transparent),
+        var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      min-height: 100vh;
+      font-variant-numeric: tabular-nums;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 64px; }
+    .brand {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--teal); text-decoration: none;
+    }
+    .brand::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--teal); box-shadow: 0 0 12px var(--teal); }
+    h1 {
+      margin: 10px 0 8px;
+      font-size: clamp(26px, 5.4vw, 40px);
+      line-height: 1.12; letter-spacing: -0.035em; font-weight: 900;
+    }
+    h1 b { background: linear-gradient(90deg, var(--teal), var(--indigo)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lead { margin: 0 0 26px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+    .lead b { color: var(--ink); }
+
+    .diag {
+      border: 1px solid rgba(251, 191, 36, .35); background: rgba(251, 191, 36, .06);
+      border-radius: 16px; padding: 16px 18px; margin-bottom: 26px;
+      font-size: 13.5px; line-height: 1.7; color: #fde68a;
+    }
+    .diag b { color: var(--gold); }
+
+    .rule {
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      border: 1px solid var(--line); border-radius: 18px;
+      padding: 18px 20px; margin-bottom: 14px;
+    }
+    .rule .num {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 26px; height: 26px; border-radius: 8px; padding: 0 8px;
+      background: rgba(45, 212, 191, .12); border: 1px solid rgba(45, 212, 191, .4);
+      color: var(--teal); font-weight: 900; font-size: 13px; margin-right: 10px;
+    }
+    .rule h2 { display: flex; align-items: center; margin: 0 0 12px; font-size: 17px; letter-spacing: -0.02em; }
+    .rule .why, .rule .how { font-size: 13px; line-height: 1.7; margin: 0 0 8px; }
+    .rule .why { color: var(--muted); }
+    .rule .how { color: var(--ink); }
+    .rule .why::before { content: "왜 — "; font-weight: 800; color: var(--red); }
+    .rule .how::before { content: "실행 — "; font-weight: 800; color: var(--teal); }
+    .rule .why b, .rule .how b { color: var(--ink); }
+    .rule .how:last-child { margin-bottom: 0; }
+
+    .checkCard {
+      border: 1px solid rgba(45, 212, 191, .35);
+      background:
+        radial-gradient(24rem 10rem at 90% -20%, rgba(45, 212, 191, .12), transparent),
+        linear-gradient(180deg, var(--panel2), var(--panel));
+      border-radius: 18px; padding: 18px 20px; margin: 28px 0 14px;
+    }
+    .checkCard h2 { margin: 0 0 4px; font-size: 17px; }
+    .checkCard .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 14px; line-height: 1.6; }
+    .checkItem {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line);
+      background: #0d1119; margin-bottom: 8px; cursor: pointer;
+      font-size: 13.5px; line-height: 1.55; font-weight: 600;
+    }
+    .checkItem input { accent-color: var(--teal); width: 18px; height: 18px; margin-top: 1px; flex: none; cursor: pointer; }
+    .checkItem span b { color: var(--teal); }
+    .checkItem.done { opacity: .55; }
+    .checkItem.done span { text-decoration: line-through; }
+    .checkMsg { font-size: 12.5px; font-weight: 700; margin-top: 10px; min-height: 18px; }
+    .checkMsg.ok { color: var(--teal); }
+    .checkMsg.no { color: var(--red); }
+
+    .backLink {
+      display: inline-block; margin-top: 18px;
+      color: var(--teal); font-weight: 800; font-size: 14px; text-decoration: none;
+      border: 1px solid rgba(45, 212, 191, .4); border-radius: 12px; padding: 11px 18px;
+    }
+    .backLink:hover { background: rgba(45, 212, 191, .08); }
+    footer { margin-top: 26px; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="brand" href="./">Leverage Planner</a>
+      <h1>매매 개선 규칙 — <b>기록이 말해준 것들</b></h1>
+      <p class="lead">느낌이 아니라 한 달치 실제 청산 기록 분석에서 나온 규칙들입니다. 공통 결론은 하나 — <b>문제는 승률이 아니라, 이길 때 조금 벌고 질 때 크게 잃는 비대칭</b>이었습니다.</p>
+    </header>
+
+    <div class="diag">
+      <b>진단 요약</b> — 승률 60%대에도 켈리 f가 음수였던 이유: ① 큰 손실 두 방이 한 달 성적을 통째로 결정했고, ② 10분 미만 초단타에서 수익은 빨리 끊고 손실은 오래 들고 갔으며, ③ 손절 직후 감정적 재진입 연쇄가 반복됐다. 이 세 가지를 끊자 같은 승률로 켈리가 양수로 돌아섰다.
+    </div>
+
+    <div class="rule">
+      <h2><span class="num">1</span>물린 포지션은 그날 안에 자른다</h2>
+      <p class="why">한 달 손실의 절반 이상이 단 두 번의 거래에서 나왔다. 공통점은 손절 없이 <b>12시간, 22시간을 버틴 것</b>. 이 두 건만 없었으면 그 달은 흑자였다. 계좌를 결정하는 건 평균이 아니라 꼬리다.</p>
+      <p class="how">가격 기준 <b>-2%를 넘게 물리면 그날 안에 정리</b>한다. "돌아올 것 같다"는 느낌은 판단이 아니라 희망이다. 판단이라면 애초에 손절가가 있었을 것이다.</p>
+    </div>
+
+    <div class="rule">
+      <h2><span class="num">2</span>손절 후 같은 종목 15분 재진입 금지</h2>
+      <p class="why">손절 직후 60초 안에 같은 종목에 다시 들어가는 연쇄가 2주에 7번, 최장 <b>6연속</b> 있었고 전부 합쳐 마이너스였다. 손절 후 2분 내 방향 뒤집기는 23회 중 최대 수익이 +1 USDT — 반사적 재진입은 분석이 아니라 반응이다.</p>
+      <p class="how">손절이 나가면 <b>타이머 15분</b>. 그 사이에 차트를 다시 읽고, 그래도 확신이 있으면 들어간다. 실제로 크게 회복한 매매들은 전부 손절 후 한 시간 이상 지나서 다시 판단한 것들이었다.</p>
+    </div>
+
+    <div class="rule">
+      <h2><span class="num">3</span>방향을 모르겠으면 들어가지 않는다</h2>
+      <p class="why">"방향은 모르겠지만 스탑을 짧게 잡으면 되겠지"로 들어간 10분 미만 초단타가 전체 거래의 60%를 차지하며 꾸준히 돈을 흘렸다. 심지어 이 구간에서 수익은 평균 +0.14%에서 끊고 손실은 -0.62%까지 들고 갔다 — <b>짧게 끊긴 건 손실이 아니라 수익</b>이었다.</p>
+      <p class="how">진입 근거를 한 문장으로 말할 수 없으면 그 자리는 없는 자리다. 짧은 스탑은 모르는 방향에 대한 보험이 아니라 <b>수수료를 내며 동전을 던지는 것</b>이다.</p>
+    </div>
+
+    <div class="rule">
+      <h2><span class="num">4</span>엣지는 오래 들고 가는 자리에 있다</h2>
+      <p class="why">보유 1시간 이상 자리의 승률은 80~100%였고 수익 대부분이 여기서 나왔다. 10분 미만은 그 수익을 도로 반납하는 구간이었다. 이기는 자리를 잡는 능력은 이미 있다 — <b>문제는 그 자리에 머무르지 못하는 것</b>.</p>
+      <p class="how">목표가에 닿기 전 익절 충동이 오면 자문한다: "지금 나가려는 이유가 차트에 있는가, 내 기분에 있는가." 차트에 없으면 홀드.</p>
+    </div>
+
+    <div class="rule">
+      <h2><span class="num">5</span>사이즈는 하프켈리가 상한</h2>
+      <p class="why">기록 기반 켈리 f가 양수라도 그건 과거 2주의 통계일 뿐이다. 입력값(승률·손익비)의 추정 오차 때문에 풀켈리는 실전에서 거의 항상 과베팅이 된다.</p>
+      <p class="how"><a href="./" style="color:var(--teal);">계산기</a>에 CSV를 올려 켈리 f를 확인하고, <b>하프켈리와 허용 손실 규칙 중 작은 쪽</b>을 진입금 상한으로 쓴다. 켈리가 음수면 그 주는 사이즈 문제가 아니라 손익비 문제 — 베팅을 멈추고 평균 손실부터 줄인다.</p>
+    </div>
+
+    <div class="rule">
+      <h2><span class="num">6</span>기록이 전략을 이긴다</h2>
+      <p class="why">전략을 바꾼 시점 이후만 잘라서 계산하자 켈리가 음수에서 양수로 뒤집혔다. 섞어서 보면 지금 실력이 왜곡되고, 안 보면 나쁜 습관이 숫자로 잡히지 않는다.</p>
+      <p class="how"><b>2주마다 Position History CSV를 내려받아</b> 계산기에 올린다. 규칙을 바꾼 날짜를 적어두고 그 날짜부터만 계산한다. 표본 50~100건이 쌓이기 전의 켈리는 참고용이다.</p>
+    </div>
+
+    <div class="checkCard">
+      <h2>진입 전 30초 체크</h2>
+      <p class="sub">매일 자정에 초기화됩니다. 세 개 다 체크되기 전에는 진입 버튼을 누르지 않기로 자신과 약속하세요.</p>
+      <label class="checkItem"><input type="checkbox" data-chk="0" /><span>방향 근거를 <b>한 문장</b>으로 말할 수 있다 (규칙 3)</span></label>
+      <label class="checkItem"><input type="checkbox" data-chk="1" /><span>손절가와 손절 시 계좌 손실 %를 <b>진입 전에</b> 정했다 (규칙 1·5)</span></label>
+      <label class="checkItem"><input type="checkbox" data-chk="2" /><span>직전 손절로부터 <b>15분</b>이 지났다 (규칙 2)</span></label>
+      <div class="checkMsg" id="checkMsg"></div>
+    </div>
+
+    <a class="backLink" href="./">← 계산기로 돌아가기</a>
+
+    <footer>
+      이 규칙들은 특정 기간의 개인 매매 기록 분석에서 나온 것으로, 투자 조언이 아닙니다. 자신의 기록으로 직접 검증하세요 — 계산기의 CSV 분석이 같은 진단을 자동으로 해줍니다.
+    </footer>
+  </div>
+
+  <script>
+    'use strict';
+    // 체크리스트: 날짜가 바뀌면 초기화
+    const KEY = 'leverage-planner-check-v1';
+    const today = new Date().toISOString().slice(0, 10);
+    const boxes = [...document.querySelectorAll('[data-chk]')];
+    const msg = document.getElementById('checkMsg');
+
+    let state = { date: today, done: [false, false, false] };
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (saved && saved.date === today && Array.isArray(saved.done)) state = saved;
+    } catch (_) {}
+
+    function render() {
+      boxes.forEach((b, i) => {
+        b.checked = !!state.done[i];
+        b.closest('.checkItem').classList.toggle('done', !!state.done[i]);
+      });
+      const all = state.done.every(Boolean);
+      msg.textContent = all
+        ? '통과 — 계획대로만 하면 됩니다.'
+        : `${state.done.filter(Boolean).length}/3 — 다 채우기 전에는 진입 금지.`;
+      msg.className = 'checkMsg ' + (all ? 'ok' : 'no');
+    }
+
+    boxes.forEach((b, i) => b.addEventListener('change', () => {
+      state.done[i] = b.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {}
+      render();
+    }));
+    render();
+  </script>
+</body>
+</html>

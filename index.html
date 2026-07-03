@@ -41,6 +41,12 @@
       color: var(--teal);
     }
     .brand::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--teal); box-shadow: 0 0 12px var(--teal); }
+    .brandRow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .rulesLink {
+      color: var(--gold); font-weight: 800; font-size: 12.5px; text-decoration: none;
+      border: 1px solid rgba(251, 191, 36, .4); border-radius: 10px; padding: 7px 13px;
+    }
+    .rulesLink:hover { background: rgba(251, 191, 36, .08); }
     h1 {
       margin: 10px 0 8px;
       font-size: clamp(26px, 5.4vw, 44px);
@@ -217,7 +223,10 @@
 <body>
   <div class="wrap">
     <header>
-      <span class="brand">Leverage Planner</span>
+      <div class="brandRow">
+        <span class="brand">Leverage Planner</span>
+        <a class="rulesLink" href="rules.html">매매 개선 규칙 →</a>
+      </div>
       <h1>최적 레버리지를 찾고,<br><b>진입금까지 역산한다</b></h1>
       <p class="lead">본전·손실·수익 분포에서 로그 최적 레버리지를 먼저 찾고, 정해진 레버리지에서 계좌가 수학적으로 망가지지 않는 진입금 비율을 역산합니다.</p>
     </header>
@@ -414,6 +423,7 @@
     </div>
 
     <footer>
+      <a href="rules.html" style="color:var(--teal);font-weight:700;">매매 개선 규칙 보기</a> ·
       이 도구는 손절가를 대신 정해주지 않습니다. 내 전략의 결과 분포(승률·손절폭·익절폭)를 넣었을 때 어느 진입금부터 계좌가 수학적으로 망가지는지 보는 도구입니다. 수수료·펀딩비·슬리피지는 반영되어 있지 않으며, 전부 계산값을 더 나쁘게 만듭니다.
     </footer>
   </div>
