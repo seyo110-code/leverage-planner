@@ -876,12 +876,13 @@
 
       // 실측 분포 기준: CSV의 모든 거래 변동률을 등가중으로 — 꼬리가 실제 빈도(1회성)로 반영됨
       let empCard = '';
+      let empMoves = null, empL = 0, empG = -Infinity;
       if (csvCurrent && csvCurrent.rows && csvCurrent.rows.length >= 20) {
         const moves = csvCurrent.rows.map(t => t.move).filter(Number.isFinite);
+        empMoves = moves;
         const worstEmp = Math.min(...moves);
         const empRuin = worstEmp < 0 ? 1 / (-worstEmp * margin) : Infinity;
         const empMax = Math.min(100, empRuin * 0.999);
-        let empL = 0, empG = -Infinity;
         for (let i = 0; i <= 600; i++) {
           const l = empMax * i / 600;
           let acc = 0, ok = true;
@@ -924,7 +925,7 @@
 
       els.limitReadout.innerHTML =
         `최적 레버리지 <b>${bestL.toFixed(1)}x</b> → 1회 로그성장 G(L) = <b>${bestG >= 0 ? '+' : ''}${(bestG * 100).toFixed(3)}%</b> · 노출 ${pct(bestExposure, 0)} · 손실 시 계좌 -${pct(lossMove * bestExposure)} · 수익 시 +${pct(winMove * bestExposure)} — 그래프에 마우스를 올리면 다른 레버리지의 값도 표시됩니다.`;
-      drawLimitChart({ flatP, lossP, winP, lossMove, winMove, margin, scanMax, bestL, bestG, maxGood });
+      drawLimitChart({ flatP, lossP, winP, lossMove, winMove, margin, scanMax, bestL, bestG, maxGood, empMoves, empL, empG });
       drawWinMoveChart({ flatP, lossP, winP, lossMove, winMove, margin, lev: bestL, decay, alpha });
     }
 
@@ -1105,6 +1106,22 @@
         const g = multiOutcomeGrowth(l, s.flatP, s.lossP, s.winP, s.lossMove, s.winMove, s.margin);
         if (Number.isFinite(g)) { pts.push([l, g]); minY = Math.min(minY, g); maxY = Math.max(maxY, g); }
       }
+      // 실측 분포 곡선 (CSV 로드 시)
+      const empPts = [];
+      if (s.empMoves && s.empMoves.length) {
+        for (let i = 0; i <= 500; i++) {
+          const l = s.scanMax * i / 500;
+          let acc = 0, ok = true;
+          for (const mv of s.empMoves) {
+            const r = 1 + mv * s.margin * l;
+            if (r <= 0) { ok = false; break; }
+            acc += Math.log(r);
+          }
+          if (!ok) break;
+          const g = acc / s.empMoves.length;
+          empPts.push([l, g]); minY = Math.min(minY, g); maxY = Math.max(maxY, g);
+        }
+      }
       const padY = (maxY - minY) * 0.16 || 0.02;
       minY -= padY; maxY += padY;
       const Y = g => y0 - ((g - minY) / (maxY - minY)) * (y0 - y1);
@@ -1134,6 +1151,26 @@
       ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 3; ctx.beginPath();
       pts.forEach(([l, g], i) => { if (i === 0) ctx.moveTo(X(l), Y(g)); else ctx.lineTo(X(l), Y(g)); });
       ctx.stroke();
+
+      if (empPts.length) {
+        ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 2.5;
+        ctx.setLineDash([7, 4]);
+        ctx.beginPath();
+        empPts.forEach(([l, g], i) => { if (i === 0) ctx.moveTo(X(l), Y(g)); else ctx.lineTo(X(l), Y(g)); });
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (s.empL > 0 && Number.isFinite(s.empG)) {
+          ctx.fillStyle = '#818cf8';
+          ctx.beginPath(); ctx.arc(X(Math.min(s.empL, s.scanMax)), Y(s.empG), 5, 0, Math.PI * 2); ctx.fill();
+          ctx.font = '700 12.5px ui-sans-serif, system-ui';
+          ctx.fillText(`실측 최적 ${s.empL.toFixed(1)}x · G ${s.empG >= 0 ? '+' : ''}${(s.empG * 100).toFixed(2)}%`,
+            Math.min(X(s.empL) + 8, x1 - 180), Math.min(Y(s.empG) + 22, y0 - 8));
+        }
+        // 범례
+        ctx.font = '700 12.5px ui-sans-serif, system-ui';
+        ctx.fillStyle = '#2dd4bf'; ctx.fillText('— 모델(평균 기준)', x0 + 6, y1 + 12);
+        ctx.fillStyle = '#818cf8'; ctx.fillText('┄ 실측 분포', x0 + 6, y1 + 28);
+      }
 
       ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
       if (s.maxGood > 0 && s.maxGood < s.scanMax) {
@@ -1168,8 +1205,20 @@
       const l = s.scanMax * ratio;
       const g = multiOutcomeGrowth(l, s.flatP, s.lossP, s.winP, s.lossMove, s.winMove, s.margin);
       const exposure = l * s.margin;
+      let empTxt = '';
+      if (s.empMoves && s.empMoves.length) {
+        let acc = 0, ok = true;
+        for (const mv of s.empMoves) {
+          const r = 1 + mv * s.margin * l;
+          if (r <= 0) { ok = false; break; }
+          acc += Math.log(r);
+        }
+        empTxt = ok
+          ? ` · <span class="indigo">실측 G = ${(acc / s.empMoves.length * 100).toFixed(3)}%</span>`
+          : ' · <span class="indigo">실측: 최악 거래 한 번에 소멸</span>';
+      }
       els.limitReadout.innerHTML = Number.isFinite(g)
-        ? `레버리지 <b>${l.toFixed(1)}x</b> → G(L) = <b>${(g * 100).toFixed(3)}%</b> · 노출 ${pct(exposure, 0)} · 손실 시 계좌 -${pct(s.lossMove * exposure)} · 수익 시 +${pct(s.winMove * exposure)}`
+        ? `레버리지 <b>${l.toFixed(1)}x</b> → G(L) = <b>${(g * 100).toFixed(3)}%</b>${empTxt} · 노출 ${pct(exposure, 0)} · 손실 시 계좌 -${pct(s.lossMove * exposure)} · 수익 시 +${pct(s.winMove * exposure)}`
         : `레버리지 ${l.toFixed(1)}x는 손실 한 번에 계좌가 소멸하는 영역입니다.`;
     }
 
