@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>매매 조언 — 계좌를 키우는 길</title>
+  <meta name="description" content="10배는 시장이 아니라 프로세스의 문제다. 복리·심리 스케일링·시간 계산·성장의 3조건." />
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #121722;
+      --panel2: #171e2c;
+      --line: #232c3f;
+      --ink: #e8edf5;
+      --muted: #8b95a8;
+      --teal: #2dd4bf;
+      --red: #f87171;
+      --gold: #fbbf24;
+      --indigo: #818cf8;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(60rem 30rem at 85% -10%, rgba(129, 140, 248, .1), transparent),
+        radial-gradient(50rem 26rem at -10% 0%, rgba(45, 212, 191, .08), transparent),
+        var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      min-height: 100vh;
+      font-variant-numeric: tabular-nums;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 64px; }
+    .brand {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 13.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--teal); text-decoration: none;
+    }
+    .brand::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--teal); box-shadow: 0 0 12px var(--teal); }
+    .brandRow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .navLinks { display: flex; gap: 8px; flex-wrap: wrap; }
+    .topBack {
+      color: var(--teal); font-weight: 800; font-size: 14px; text-decoration: none;
+      border: 1px solid rgba(45, 212, 191, .4); border-radius: 10px; padding: 7px 13px;
+    }
+    .topBack:hover { background: rgba(45, 212, 191, .08); }
+    .topBack.gold { color: var(--gold); border-color: rgba(251, 191, 36, .4); }
+    .topBack.gold:hover { background: rgba(251, 191, 36, .08); }
+    h1 {
+      margin: 10px 0 8px;
+      font-size: clamp(26px, 5.4vw, 40px);
+      line-height: 1.12; letter-spacing: -0.035em; font-weight: 900;
+    }
+    h1 b { background: linear-gradient(90deg, var(--indigo), var(--teal)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lead { margin: 0 0 26px; color: var(--muted); font-size: 15.5px; line-height: 1.65; }
+    .lead b { color: var(--ink); }
+
+    .sect {
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      border: 1px solid var(--line); border-radius: 18px;
+      padding: 20px 22px; margin-bottom: 14px;
+    }
+    .sect h2 { margin: 0 0 12px; font-size: 18px; letter-spacing: -0.02em; }
+    .sect h2 b { color: var(--indigo); }
+    .sect p { font-size: 15px; line-height: 1.75; margin: 0 0 12px; color: var(--muted); }
+    .sect p:last-child { margin-bottom: 0; }
+    .sect p b { color: var(--ink); }
+    .sect .punch { color: var(--ink); font-weight: 700; }
+    .sect code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+      background: #0d1119; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; color: var(--teal);
+    }
+
+    .cond {
+      border: 1px solid rgba(45, 212, 191, .35);
+      background:
+        radial-gradient(24rem 10rem at 90% -20%, rgba(45, 212, 191, .12), transparent),
+        linear-gradient(180deg, var(--panel2), var(--panel));
+      border-radius: 18px; padding: 20px 22px; margin: 26px 0 14px;
+    }
+    .cond h2 { margin: 0 0 6px; font-size: 18px; }
+    .cond .sub { color: var(--muted); font-size: 14px; margin: 0 0 14px; line-height: 1.6; }
+    .condItem {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line);
+      background: #0d1119; margin-bottom: 8px;
+      font-size: 15px; line-height: 1.65;
+    }
+    .condItem .n {
+      flex: none; display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 8px;
+      background: rgba(45, 212, 191, .12); border: 1px solid rgba(45, 212, 191, .4);
+      color: var(--teal); font-weight: 900; font-size: 14.5px;
+    }
+    .condItem b { color: var(--teal); }
+    .condItem .body { color: var(--muted); }
+    .condItem .body b { color: var(--ink); }
+
+    .warnBox {
+      border: 1px solid rgba(248, 113, 113, .4); background: rgba(248, 113, 113, .07);
+      border-radius: 16px; padding: 16px 18px; margin-bottom: 14px;
+      font-size: 15px; line-height: 1.7; color: #fecaca;
+    }
+    .warnBox b { color: var(--red); }
+
+    .linksRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .backLink {
+      display: inline-block;
+      color: var(--teal); font-weight: 800; font-size: 15.5px; text-decoration: none;
+      border: 1px solid rgba(45, 212, 191, .4); border-radius: 12px; padding: 11px 18px;
+    }
+    .backLink:hover { background: rgba(45, 212, 191, .08); }
+    .backLink.gold { color: var(--gold); border-color: rgba(251, 191, 36, .4); }
+    .backLink.gold:hover { background: rgba(251, 191, 36, .08); }
+    footer { margin-top: 26px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brandRow">
+        <a class="brand" href="./">Leverage Planner</a>
+        <div class="navLinks">
+          <a class="topBack gold" href="rules.html">매매 규칙</a>
+          <a class="topBack" href="./">계산기</a>
+        </div>
+      </div>
+      <h1>매매 조언 — <b>계좌를 키우는 길</b></h1>
+      <p class="lead"><a href="rules.html" style="color:var(--gold);">규칙 페이지</a>가 "오늘 한 번의 매매"를 지키는 것이라면, 이 페이지는 <b>계좌를 10배로 키우는 여정 전체</b>에 대한 이야기입니다. 결론부터: 10배는 시장이 허락하느냐의 문제가 아니라, 프로세스가 버티느냐의 문제입니다.</p>
+    </header>
+
+    <div class="sect">
+      <h2><b>1.</b> 복리는 규모를 모른다</h2>
+      <p>10불→100불도 10배, 100불→1000불도 10배 — 수학적으로 완전히 같은 일입니다. 1000불 규모는 주요 선물 시장 유동성에 티끌이라 시장이 막지도 않습니다. 켈리 기준 사이즈는 금액이 아니라 <b>계좌의 %</b>이므로, 계좌가 커져도 공식은 한 글자도 바뀌지 않습니다.</p>
+      <p class="punch">그러니 "여기까지 온 게 진짜 엣지였다면", 다음 10배도 같은 프로세스로 갑니다. 문제는 그 "진짜 엣지였다면"을 확인하는 것 — 그래서 기록 분석이 먼저입니다.</p>
+    </div>
+
+    <div class="sect">
+      <h2><b>2.</b> 진짜 적은 시장이 아니라 심리 스케일링이다</h2>
+      <p>100불 계좌에서 -2불 손절은 아무 감정이 없습니다. 1000불 계좌에서 -20불 손절은 밥값입니다. 그런데 기록이 보여주는 위험 행동들 — 손절 직후 재진입 연쇄, 물린 포지션 버티기, 홧김 방향 뒤집기 — 은 전부 <b>감정이 커질 때 나오는 행동</b>입니다.</p>
+      <p>즉 계좌가 커질수록 규칙을 어길 유혹은 강해지고, 어겼을 때의 대가는 정확히 계좌 크기에 비례해 비싸집니다. 작은 계좌에서 -81불이었던 사고는 10배 계좌에서 -810불이 됩니다.</p>
+      <p class="punch">작은 계좌 시절 당신을 지켜준 건 실력이 아니라 "잃어도 안 아픈 금액"이라는 보호막이었을 수 있습니다. 다음 구간에는 그 보호막이 없습니다. 규칙이 그 자리를 대신해야 합니다.</p>
+    </div>
+
+    <div class="sect">
+      <h2><b>3.</b> 시간을 계산하면 조급함이 사라진다</h2>
+      <p>10배가 되려면 로그 성장 누적이 <code>ln(10) ≈ 2.30</code> 필요합니다. 실측 통계(예: 승률 40%, 손익비 2)로 하프켈리 사이즈를 지키면 의미 있는 베팅 한 번당 로그 성장은 대략 0.5% 수준 — 즉 <b>제대로 된 거래 400~500번</b>이 필요합니다. 2주에 진짜 베팅 50번 페이스라면 <b>4~6개월</b>입니다.</p>
+      <p>이게 규칙을 전부 지켰을 때의 속도입니다. "한 달 안에 10배"를 노리는 순간 켈리를 초과하는 사이즈가 되는데, 과베팅은 기대값이 양수인 전략조차 파산시킵니다 — 역U자 곡선의 오른쪽 내리막이 정확히 그 이야기입니다.</p>
+      <p class="punch">조급함은 전략의 문제가 아니라 일정의 문제입니다. "몇 달 걸린다"를 미리 받아들이는 것이 가장 중요한 준비물입니다.</p>
+    </div>
+
+    <div class="sect">
+      <h2><b>4.</b> ROI는 표시 단위일 뿐, 최적화는 가격폭에서</h2>
+      <p>거래소 화면의 ROI(수익률)는 <b>증거금 대비</b>라 레버리지가 곱해진 숫자입니다. 20배에서 가격 +2%면 화면엔 +40% — 커 보이지만 가격은 2% 움직였을 뿐입니다. 반대로 -40%로 찍혀도 "가격은 겨우 2% 빠졌는데"라며 버티게 만드는 착시가 됩니다.</p>
+      <p class="punch">익절·손절의 최적점은 가격폭 기준으로 계산하고(계산기가 해줍니다), ROI는 그걸 내 레버리지로 환산해 읽는 번역문으로만 쓰세요. 시장은 내 레버리지를 모릅니다.</p>
+    </div>
+
+    <div class="sect">
+      <h2><b>5.</b> 잔돈은 실력이 아니다 — 본전을 걸러내라</h2>
+      <p>수수료·스프레드 수준의 미세 손익까지 승패로 세면 승률과 켈리가 부풀어 오릅니다. 잔돈 거래를 무승부로 걸러내면 진짜 프로필이 드러나는데, 예컨대 "승률 60%, 손익비 1"로 보이던 기록이 실제로는 <b>"거래의 60%는 본전, 진짜 베팅은 승률 40%에 손익비 2"</b>일 수 있습니다.</p>
+      <p class="punch">이 프로필은 부끄러운 게 아니라 전형적인 추세 추종형입니다. 자주 틀리고, 맞을 때 크게 먹는 구조 — 관건은 맞은 자리에서 오래 버티는 것뿐입니다.</p>
+    </div>
+
+    <div class="warnBox">
+      <b>기억할 것:</b> 지금 단계의 매매는 수익 사업이 아니라 <b>기록을 쌓는 연구개발(R&D)</b>입니다. 50~100번의 진짜 베팅 기록이 쌓이기 전의 켈리는 참고용이고, 그 전에 사이즈를 키우는 것은 검증 안 된 가설에 재산을 거는 일입니다. 이 기간의 성과는 번 돈이 아니라 <b>모은 데이터와 지킨 규칙의 횟수</b>로 측정하세요.
+    </div>
+
+    <div class="cond">
+      <h2>성장의 3조건</h2>
+      <p class="sub">이 세 가지가 지켜지는 동안에는 "될까?"가 아니라 "언제 되나"의 문제입니다.</p>
+      <div class="condItem"><span class="n">1</span><span class="body"><b>사이즈는 금액이 아니라 %로.</b> 켈리가 자동으로 해줍니다 — 계좌가 크든 작든 하프켈리 %는 같습니다. "계좌가 커졌으니 좀 더"는 %가 아니라 감정입니다.</span></div>
+      <div class="condItem"><span class="n">2</span><span class="body"><b>계좌가 2배 될 때마다 CSV 재분석.</b> 성장 중에도 엣지는 죽을 수 있습니다. 켈리가 여전히 양수인지, 평균 손실이 커지지 않았는지 확인하고 나서 다음 구간을 갑니다.</span></div>
+      <div class="condItem"><span class="n">3</span><span class="body"><b>서킷브레이커.</b> 고점 대비 -20%가 되면 일주일 중단하고 기록을 분석합니다. 드로다운 중의 매매 충동은 복구가 아니라 가속입니다.</span></div>
+    </div>
+
+    <div class="linksRow">
+      <a class="backLink" href="./">← 계산기</a>
+      <a class="backLink gold" href="rules.html">매매 규칙 6개조 →</a>
+    </div>
+
+    <footer>
+      이 조언들은 특정 기간의 개인 매매 기록 분석과 켈리 기준의 수학에서 나온 것으로, 투자 조언이 아닙니다. 숫자는 예시이며, 자신의 기록으로 직접 검증하세요.
+    </footer>
+  </div>
+</body>
+</html>
