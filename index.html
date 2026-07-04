@@ -307,7 +307,7 @@
           <div class="control">
             <label><span>최악 손실률 (스트레스)</span><span class="val bad" id="worstMoveLabel"></span></label>
             <div class="inputRow"><input id="worstMove" type="range" min="0.1" max="100" step="0.1" value="5" /><input id="worstMoveNum" type="number" min="0.1" max="100" step="0.1" value="5" /></div>
-            <div class="hint">평균은 꼬리를 숨깁니다. 손실이 날 때마다 평균이 아니라 <b>기록상 최악치</b>만큼 잃는다고 가정한 보수적 시나리오 — 진짜 최적은 평균 기준과 이 값 사이 어딘가입니다. CSV 적용 시 실제 최악 손실률이 자동 입력됩니다.</div>
+            <div class="hint">평균은 꼬리를 숨깁니다. 이 값은 "손실이 날 때마다 최악치"라는 극단 가정의 <b>하한선</b>용이고, CSV가 로드되어 있으면 <b>실측 분포 카드</b>가 최악 사건을 실제 빈도(1회성)로 반영한 최적을 따로 계산합니다 — 평균 기준(낙관)과 최악 반복(비관) 사이의 정직한 값입니다. CSV 적용 시 실제 최악 손실률이 자동 입력됩니다.</div>
           </div>
           <div class="control">
             <label><span>수익 시 평균 수익률<span class="tip" tabindex="0" role="button" aria-label="수익률 설명">?<span class="tipBox">같은 개념입니다. 수익으로 끝난 거래들이 평균적으로 가격 기준 몇 %에서 끝났는지 — 목표가가 아니라 매매 기록의 실제 평균, 레버리지 곱하기 전 1배 기준.</span></span></span><span class="val good" id="winMoveLabel"></span></label>
@@ -874,6 +874,34 @@
         if (g > stressG) { stressG = g; stressL = l; }
       }
 
+      // 실측 분포 기준: CSV의 모든 거래 변동률을 등가중으로 — 꼬리가 실제 빈도(1회성)로 반영됨
+      let empCard = '';
+      if (csvCurrent && csvCurrent.rows && csvCurrent.rows.length >= 20) {
+        const moves = csvCurrent.rows.map(t => t.move).filter(Number.isFinite);
+        const worstEmp = Math.min(...moves);
+        const empRuin = worstEmp < 0 ? 1 / (-worstEmp * margin) : Infinity;
+        const empMax = Math.min(100, empRuin * 0.999);
+        let empL = 0, empG = -Infinity;
+        for (let i = 0; i <= 600; i++) {
+          const l = empMax * i / 600;
+          let acc = 0, ok = true;
+          for (const mv of moves) {
+            const r = 1 + mv * margin * l;
+            if (r <= 0) { ok = false; break; }
+            acc += Math.log(r);
+          }
+          if (!ok) break;
+          const g = acc / moves.length;
+          if (g > empG) { empG = g; empL = l; }
+        }
+        empCard = metricCard('실측 분포 최적 (꼬리 1회 반영)',
+          empG > 0 && empL > 0.05 ? `${empL.toFixed(1)}x` : '베팅 금지',
+          empG > 0 && empL > 0.05 ? 'indigo' : 'bad',
+          empG > 0 && empL > 0.05
+            ? `기록 ${moves.length}건 실제 분포 · 노출 ${pct(empL * margin, 0)} · G +${(empG * 100).toFixed(2)}% · 최악 한 방 시 계좌 -${pct(-worstEmp * empL * margin)}`
+            : '실측 분포 기준으로 복리 마이너스');
+      }
+
       els.limitMetrics.innerHTML = [
         metricCard('로그 최적 레버리지', `${bestL.toFixed(1)}x`, 'good', `이 지점이 곡선의 꼭대기`),
         metricCard('로그 양수 한계', `${maxGood.toFixed(1)}x`, 'gold', `이 위로는 복리 기준 마이너스`),
@@ -881,10 +909,11 @@
         metricCard('최적점 계좌 노출', pct(bestExposure, 0), 'indigo', `${bestL.toFixed(1)}x × 진입금 ${pct(margin, 0)}`),
         metricCard('최적점 손익', bestL > 0 ? `-${pct(lossMove * bestExposure)} / +${pct(winMove * bestExposure)}` : '—', '', '손실 시 / 수익 시 계좌 기준'),
         metricCard('최적점 로그성장', `${bestG >= 0 ? '+' : ''}${(bestG * 100).toFixed(2)}%`, bestG > 0 ? 'good' : 'bad', '1회 거래당'),
-        metricCard('꼬리 스트레스 최적', stressG > 0 && stressL > 0.05 ? `${stressL.toFixed(1)}x` : '베팅 금지', stressG > 0 && stressL > 0.05 ? 'gold' : 'bad',
+        metricCard('꼬리 스트레스 (최악 반복 가정)', stressG > 0 && stressL > 0.05 ? `${stressL.toFixed(1)}x` : '베팅 금지', stressG > 0 && stressL > 0.05 ? 'gold' : 'bad',
           stressG > 0 && stressL > 0.05
             ? `손실=최악 -${pct(worstMove)} 가정 · 노출 ${pct(stressL * margin, 0)} · G +${(stressG * 100).toFixed(2)}%`
             : `손실이 매번 -${pct(worstMove)}이라면 복리 기준 마이너스`),
+        empCard,
       ].join('');
 
       const decay = els.decayOn.checked;
@@ -1317,6 +1346,7 @@
         csvEls.verdict.innerHTML = '이 날짜 이후 거래가 없습니다. 날짜를 앞으로 당겨보세요.';
         csvEls.metrics.innerHTML = '';
         renderCsvDiag(null);
+        updateLimit();
         return;
       }
       const fin = (x, f) => Number.isFinite(x) ? f(x) : '∞';
@@ -1336,6 +1366,7 @@
       csvEls.verdict.innerHTML = s.kelly > 0
         ? `이 기록 기준 켈리 f = <b>+${(s.kelly * 100).toFixed(1)}%</b>. 실전 상한은 하프켈리 <b>${(s.kelly * 50).toFixed(1)}%</b>가 표준입니다. "아래 계산기에 적용"을 누르면 승률 ${pct(s.p, 0)}, 평균 수익률 +${pct(s.avgWinMove, 2)}, 평균 손실률 -${pct(s.avgLossMove, 2)}가 입력칸에 들어가고, 자산 대비 진입금 비율은 <b>${kmName}(${(s.kelly * 100 * km).toFixed(1)}%)</b>로 설정됩니다.${km === 1 ? ' <b class="bad">주의: 풀켈리는 입력 통계가 정확하다는 전제의 이론값 — 추정 오차 한 번이면 과베팅이 됩니다.</b>' : ''}${sample}`
         : `이 기록 기준 켈리 f는 <b class="bad">${(s.kelly * 100).toFixed(1)}%</b> — 수학적으로는 베팅 금지 구간입니다. 승률(${pct(s.p, 0)}) 대비 손익비(${Number.isFinite(s.rr) ? s.rr.toFixed(2) : '∞'}R)가 부족합니다. 사이즈를 줄이는 것보다 <b>평균 손실을 줄이는 것</b>이 켈리를 양수로 만드는 가장 빠른 길입니다.${sample}`;
+      updateLimit();
     }
 
     function kellyFactor() {
@@ -1522,6 +1553,7 @@
       csvEls.file.value = '';
       csvEls.metrics.innerHTML = ''; csvEls.verdict.innerHTML = ''; csvEls.savedNote.textContent = '';
       renderCsvDiag(null);
+      updateLimit();
       try { localStorage.removeItem(CSV_STORE_KEY); } catch (_) {}
       if (location.hash.startsWith('#d=')) history.replaceState(null, '', location.pathname + location.search);
     });
