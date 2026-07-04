@@ -1016,8 +1016,9 @@
           const capNote = bestP >= pCap - 0.005
             ? ` 이 α에서는 목표를 당길수록 복리에 유리해서, 도달확률이 상한(1−손실확률 = ${pct(pCap, 0)})에 닿는 지점이 최적이 됩니다 — "자주 조금씩"이 수학적으로 이기는 구간입니다.`
             : '';
+          const roi = `거래소 ROI 화면 기준(최적 레버리지 ${s.lev.toFixed(1)}x): 익절은 <b class="good">+${pct(bestX * s.lev, 0)}</b>, 평균 손실률대로 손절되면 <b class="bad">-${pct(s.lossMove * s.lev, 0)}</b>로 찍힙니다.`;
           els.targetReadout.innerHTML =
-            `이 감쇠 모델(α=${s.alpha.toFixed(2)})에서 로그 최적 목표는 <b>+${pct(bestX)}</b> — 도달확률 ${pct(bestP, 0)}, 1회 로그성장 ${(bestG * 100).toFixed(3)}%. ${compare}${capNote}`;
+            `이 감쇠 모델(α=${s.alpha.toFixed(2)})에서 로그 최적 목표는 <b>+${pct(bestX)}</b> — 도달확률 ${pct(bestP, 0)}, 1회 로그성장 ${(bestG * 100).toFixed(3)}%. ${roi} ${compare}${capNote}`;
         } else {
           els.targetReadout.innerHTML = '이 확률·손실 조건에서는 어떤 목표를 잡아도 로그성장이 양수가 되지 않습니다. 손실 확률이나 손실률부터 줄여야 합니다.';
         }
