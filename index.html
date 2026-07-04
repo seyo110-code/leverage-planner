@@ -1300,7 +1300,7 @@
       renderCsvDiag(csvDiagnostics(s.rows));
       const sample = s.n < 30 ? ` <b>표본이 ${s.n}건뿐이라 신뢰도가 낮습니다 — 참고용으로만 보세요.</b>` : '';
       csvEls.verdict.innerHTML = s.kelly > 0
-        ? `이 기록 기준 켈리 f = <b>+${(s.kelly * 100).toFixed(1)}%</b>. 실전 상한은 하프켈리 <b>${(s.kelly * 50).toFixed(1)}%</b>가 표준입니다. "아래 계산기에 적용"을 누르면 승률 ${pct(s.p, 0)}, 평균 수익률 +${pct(s.avgWinMove, 2)}, 평균 손실률 -${pct(s.avgLossMove, 2)}가 입력칸에 들어갑니다.${sample}`
+        ? `이 기록 기준 켈리 f = <b>+${(s.kelly * 100).toFixed(1)}%</b>. 실전 상한은 하프켈리 <b>${(s.kelly * 50).toFixed(1)}%</b>가 표준입니다. "아래 계산기에 적용"을 누르면 승률 ${pct(s.p, 0)}, 평균 수익률 +${pct(s.avgWinMove, 2)}, 평균 손실률 -${pct(s.avgLossMove, 2)}가 입력칸에 들어가고, 자산 대비 진입금 비율은 하프켈리(${(s.kelly * 50).toFixed(1)}%)로 설정됩니다.${sample}`
         : `이 기록 기준 켈리 f는 <b class="bad">${(s.kelly * 100).toFixed(1)}%</b> — 수학적으로는 베팅 금지 구간입니다. 승률(${pct(s.p, 0)}) 대비 손익비(${Number.isFinite(s.rr) ? s.rr.toFixed(2) : '∞'}R)가 부족합니다. 사이즈를 줄이는 것보다 <b>평균 손실을 줄이는 것</b>이 켈리를 양수로 만드는 가장 빠른 길입니다.${sample}`;
     }
 
@@ -1322,6 +1322,8 @@
       els.winP.value = els.winPNum.value = winPct;
       setPair(els.lossMove, els.lossMoveNum, s.avgLossMove * 100);
       setPair(els.winMove, els.winMoveNum, s.avgWinMove * 100);
+      // 자산 대비 진입금 비율은 실측 켈리의 절반(하프켈리)으로 — 실전 권장 상한
+      if (s.kelly > 0) setPair(els.lmargin, els.lmarginNum, s.kelly * 50);
       // 진입금 섹션: 승률(본전 제외) + 평균 변동률을 손절/목표폭으로
       setPair(els.win, els.winNum, s.p * 100);
       setPair(els.stop, els.stopNum, s.avgLossMove * 100);
