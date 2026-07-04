@@ -300,6 +300,11 @@
             <div class="hint">예: 20번 중 5번 손실, 각 -3/-5/-2/-8/-2%였다면 → 손실 확률 25%, 평균 손실률 4%.</div>
           </div>
           <div class="control">
+            <label><span>최악 손실률 (스트레스)</span><span class="val bad" id="worstMoveLabel"></span></label>
+            <div class="inputRow"><input id="worstMove" type="range" min="0.1" max="100" step="0.1" value="5" /><input id="worstMoveNum" type="number" min="0.1" max="100" step="0.1" value="5" /></div>
+            <div class="hint">평균은 꼬리를 숨깁니다. 손실이 날 때마다 평균이 아니라 <b>기록상 최악치</b>만큼 잃는다고 가정한 보수적 시나리오 — 진짜 최적은 평균 기준과 이 값 사이 어딘가입니다. CSV 적용 시 실제 최악 손실률이 자동 입력됩니다.</div>
+          </div>
+          <div class="control">
             <label><span>수익 시 평균 수익률<span class="tip" tabindex="0" role="button" aria-label="수익률 설명">?<span class="tipBox">같은 개념입니다. 수익으로 끝난 거래들이 평균적으로 가격 기준 몇 %에서 끝났는지 — 목표가가 아니라 매매 기록의 실제 평균, 레버리지 곱하기 전 1배 기준.</span></span></span><span class="val good" id="winMoveLabel"></span></label>
             <div class="inputRow"><input id="winMove" type="range" min="0.5" max="300" step="0.5" value="30" /><input id="winMoveNum" type="number" min="0.5" max="1000" step="0.5" value="30" /></div>
           </div>
@@ -454,6 +459,7 @@
       lossP: $('lossP'), lossPNum: $('lossPNum'), lossPLabel: $('lossPLabel'),
       winP: $('winP'), winPNum: $('winPNum'), winPLabel: $('winPLabel'),
       lossMove: $('lossMove'), lossMoveNum: $('lossMoveNum'), lossMoveLabel: $('lossMoveLabel'),
+      worstMove: $('worstMove'), worstMoveNum: $('worstMoveNum'), worstMoveLabel: $('worstMoveLabel'),
       winMove: $('winMove'), winMoveNum: $('winMoveNum'), winMoveLabel: $('winMoveLabel'),
       lmargin: $('lmargin'), lmarginNum: $('lmarginNum'), lmarginLabel: $('lmarginLabel'),
       limitMetrics: $('limitMetrics'), limitChart: $('limitChart'), limitReadout: $('limitReadout'),
@@ -790,7 +796,7 @@
         localStorage.setItem(LIMIT_KEY, JSON.stringify({
           lock: els.probLock.value,
           flat: v.flatPct, loss: v.lossPct, win: v.winPct,
-          lossMove: v.lossMovePct, winMove: v.winMovePct, margin: v.marginPct,
+          lossMove: v.lossMovePct, winMove: v.winMovePct, margin: v.marginPct, worstMove: v.worstMovePct,
           decay: els.decayOn.checked, alpha: Number(els.alpha.value),
         }));
       } catch (_) {}
@@ -803,6 +809,7 @@
         const pairs = [
           ['flat', els.flatP, els.flatPNum], ['loss', els.lossP, els.lossPNum], ['win', els.winP, els.winPNum],
           ['lossMove', els.lossMove, els.lossMoveNum], ['winMove', els.winMove, els.winMoveNum], ['margin', els.lmargin, els.lmarginNum],
+          ['worstMove', els.worstMove, els.worstMoveNum],
           ['alpha', els.alpha, els.alphaNum],
         ];
         for (const [k, range, num] of pairs) {
@@ -820,20 +827,24 @@
       els.lossMoveNum.value = els.lossMove.value;
       els.winMoveNum.value = els.winMove.value;
       els.lmarginNum.value = els.lmargin.value;
+      els.worstMoveNum.value = els.worstMove.value;
       const lossMovePct = Number(els.lossMove.value);
       const winMovePct = Number(els.winMove.value);
       const marginPct = Number(els.lmargin.value);
+      const worstMovePct = Number(els.worstMove.value);
 
       const flatP = flatPct / 100, lossP = lossPct / 100, winP = winPct / 100;
       const lossMove = lossMovePct / 100, winMove = winMovePct / 100, margin = marginPct / 100;
+      const worstMove = worstMovePct / 100;
 
-      saveLimit({ flatPct, lossPct, winPct, lossMovePct, winMovePct, marginPct });
+      saveLimit({ flatPct, lossPct, winPct, lossMovePct, winMovePct, marginPct, worstMovePct });
 
       els.lockLabel.textContent = ({ flat: '본전', loss: '손실', win: '수익' })[els.probLock.value];
       els.flatPLabel.textContent = pct(flatP, 0);
       els.lossPLabel.textContent = pct(lossP, 0);
       els.winPLabel.textContent = pct(winP, 0);
       els.lossMoveLabel.textContent = `-${pct(lossMove)}`;
+      els.worstMoveLabel.textContent = `-${pct(worstMove)}`;
       els.winMoveLabel.textContent = `+${pct(winMove)}`;
       els.lmarginLabel.textContent = pct(margin, 0);
 
@@ -848,6 +859,16 @@
       }
       const bestExposure = bestL * margin;
 
+      // 꼬리 스트레스: 손실이 날 때마다 평균이 아니라 최악치만큼 잃는다고 가정
+      const stressRuin = worstMove > 0 ? 1 / (worstMove * margin) : Infinity;
+      const stressMax = Math.min(100, stressRuin * 0.999);
+      let stressL = 0, stressG = -Infinity;
+      for (let i = 0; i <= 2000; i++) {
+        const l = stressMax * i / 2000;
+        const g = multiOutcomeGrowth(l, flatP, lossP, winP, worstMove, winMove, margin);
+        if (g > stressG) { stressG = g; stressL = l; }
+      }
+
       els.limitMetrics.innerHTML = [
         metricCard('로그 최적 레버리지', `${bestL.toFixed(1)}x`, 'good', `이 지점이 곡선의 꼭대기`),
         metricCard('로그 양수 한계', `${maxGood.toFixed(1)}x`, 'gold', `이 위로는 복리 기준 마이너스`),
@@ -855,6 +876,10 @@
         metricCard('최적점 계좌 노출', pct(bestExposure, 0), 'indigo', `${bestL.toFixed(1)}x × 진입금 ${pct(margin, 0)}`),
         metricCard('최적점 손익', bestL > 0 ? `-${pct(lossMove * bestExposure)} / +${pct(winMove * bestExposure)}` : '—', '', '손실 시 / 수익 시 계좌 기준'),
         metricCard('최적점 로그성장', `${bestG >= 0 ? '+' : ''}${(bestG * 100).toFixed(2)}%`, bestG > 0 ? 'good' : 'bad', '1회 거래당'),
+        metricCard('꼬리 스트레스 최적', stressG > 0 && stressL > 0.05 ? `${stressL.toFixed(1)}x` : '베팅 금지', stressG > 0 && stressL > 0.05 ? 'gold' : 'bad',
+          stressG > 0 && stressL > 0.05
+            ? `손실=최악 -${pct(worstMove)} 가정 · 노출 ${pct(stressL * margin, 0)} · G +${(stressG * 100).toFixed(2)}%`
+            : `손실이 매번 -${pct(worstMove)}이라면 복리 기준 마이너스`),
       ].join('');
 
       const decay = els.decayOn.checked;
@@ -1193,6 +1218,7 @@
       const grossWin = sum(wins), grossLoss = -sum(losses);
       const avgWin = avg(wins, t => t.pnl), avgLoss = -avg(losses, t => t.pnl);
       const avgWinMove = avg(wins, t => t.move), avgLossMove = -avg(losses, t => t.move);
+      const worstLossMove = losses.length ? losses.reduce((m, t) => Math.max(m, -t.move), 0) : 0;
       const decided = wins.length + losses.length;
       const p = decided ? wins.length / decided : 0;
       const rr = avgLoss > 0 ? avgWin / avgLoss : Infinity;
@@ -1201,7 +1227,7 @@
         n, wins: wins.length, losses: losses.length, flats,
         total: sum(rows), grossWin, grossLoss,
         pf: grossLoss > 0 ? grossWin / grossLoss : Infinity,
-        avgWin, avgLoss, avgWinMove, avgLossMove, p, rr, kelly, rows,
+        avgWin, avgLoss, avgWinMove, avgLossMove, worstLossMove, p, rr, kelly, rows,
       };
     }
 
@@ -1295,7 +1321,7 @@
         metricCard('총 손익', `${s.total >= 0 ? '+' : ''}${s.total.toFixed(2)}`, s.total >= 0 ? 'good' : 'bad', `거래당 기대값 ${s.total >= 0 ? '+' : ''}${(s.total / s.n).toFixed(2)} (무승부 포함)`),
         metricCard('Profit Factor', fin(s.pf, x => x.toFixed(2)), s.pf >= 1 ? 'good' : 'bad', '총수익 ÷ 총손실'),
         metricCard('평균 수익 (무승부 제외)', `+${s.avgWin.toFixed(2)}`, 'good', `가격 기준 +${pct(s.avgWinMove, 2)}`),
-        metricCard('평균 손실 (무승부 제외)', `-${s.avgLoss.toFixed(2)}`, 'bad', `가격 기준 -${pct(s.avgLossMove, 2)}`),
+        metricCard('평균 손실 (무승부 제외)', `-${s.avgLoss.toFixed(2)}`, 'bad', `가격 기준 -${pct(s.avgLossMove, 2)} · 최악 -${pct(s.worstLossMove, 2)}`),
         metricCard('손익비', fin(s.rr, x => `${x.toFixed(2)}R`), s.rr >= (1 - s.p) / Math.max(s.p, 0.01) ? 'good' : 'bad', '평균 수익 ÷ 평균 손실'),
         metricCard('켈리 f', `${s.kelly >= 0 ? '+' : ''}${(s.kelly * 100).toFixed(1)}%`, s.kelly > 0 ? 'good' : 'bad', s.kelly > 0 ? `하프켈리 ${(s.kelly * 50).toFixed(1)}%` : '기대값 음수'),
       ].join('');
@@ -1324,6 +1350,7 @@
       els.winP.value = els.winPNum.value = winPct;
       setPair(els.lossMove, els.lossMoveNum, s.avgLossMove * 100);
       setPair(els.winMove, els.winMoveNum, s.avgWinMove * 100);
+      if (s.worstLossMove > 0) setPair(els.worstMove, els.worstMoveNum, s.worstLossMove * 100);
       // 자산 대비 진입금 비율은 실측 켈리의 절반(하프켈리)으로 — 실전 권장 상한
       if (s.kelly > 0) setPair(els.lmargin, els.lmarginNum, s.kelly * 50);
       // 진입금 섹션: 승률(본전 제외) + 평균 변동률을 손절/목표폭으로
@@ -1533,6 +1560,7 @@
     bindPair(els.lossP, els.lossPNum, () => updateLimit('loss'));
     bindPair(els.winP, els.winPNum, () => updateLimit('win'));
     bindPair(els.lossMove, els.lossMoveNum, () => updateLimit());
+    bindPair(els.worstMove, els.worstMoveNum, () => updateLimit());
     bindPair(els.winMove, els.winMoveNum, () => updateLimit());
     bindPair(els.lmargin, els.lmarginNum, () => updateLimit());
     bindPair(els.alpha, els.alphaNum, () => updateLimit());
