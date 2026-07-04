@@ -863,6 +863,8 @@
       els.alphaLabel.textContent = alpha.toFixed(2);
       els.alphaControl.style.opacity = decay ? '1' : '.35';
 
+      els.limitReadout.innerHTML =
+        `최적 레버리지 <b>${bestL.toFixed(1)}x</b> → 1회 로그성장 G(L) = <b>${bestG >= 0 ? '+' : ''}${(bestG * 100).toFixed(3)}%</b> · 노출 ${pct(bestExposure, 0)} · 손실 시 계좌 -${pct(lossMove * bestExposure)} · 수익 시 +${pct(winMove * bestExposure)} — 그래프에 마우스를 올리면 다른 레버리지의 값도 표시됩니다.`;
       drawLimitChart({ flatP, lossP, winP, lossMove, winMove, margin, scanMax, bestL, bestG, maxGood });
       drawWinMoveChart({ flatP, lossP, winP, lossMove, winMove, margin, lev: bestL, decay, alpha });
     }
@@ -1089,7 +1091,7 @@
       ctx.beginPath(); ctx.arc(X(s.bestL), Y(s.bestG), 5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#e8edf5';
       ctx.font = '700 12.5px ui-sans-serif, system-ui';
-      ctx.fillText(`최적 ${s.bestL.toFixed(1)}x`, Math.min(X(s.bestL) + 8, x1 - 70), Math.max(Y(s.bestG) - 10, y1 + 12));
+      ctx.fillText(`최적 ${s.bestL.toFixed(1)}x · G ${s.bestG >= 0 ? '+' : ''}${(s.bestG * 100).toFixed(2)}%`, Math.min(X(s.bestL) + 8, x1 - 150), Math.max(Y(s.bestG) - 10, y1 + 12));
 
       ctx.fillStyle = '#8b95a8';
       ctx.font = '12.5px ui-sans-serif, system-ui';
