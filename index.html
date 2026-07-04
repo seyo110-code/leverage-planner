@@ -37,13 +37,13 @@
     header { margin-bottom: 22px; }
     .brand {
       display: inline-flex; align-items: center; gap: 8px;
-      font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+      font-size: 13.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
       color: var(--teal);
     }
     .brand::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--teal); box-shadow: 0 0 12px var(--teal); }
     .brandRow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
     .rulesLink {
-      color: var(--gold); font-weight: 800; font-size: 12.5px; text-decoration: none;
+      color: var(--gold); font-weight: 800; font-size: 14px; text-decoration: none;
       border: 1px solid rgba(251, 191, 36, .4); border-radius: 10px; padding: 7px 13px;
     }
     .rulesLink:hover { background: rgba(251, 191, 36, .08); }
@@ -55,7 +55,7 @@
       font-weight: 900;
     }
     h1 b { background: linear-gradient(90deg, var(--teal), var(--indigo)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .lead { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; max-width: 620px; }
+    .lead { margin: 0; color: var(--muted); font-size: 15.5px; line-height: 1.6; max-width: 620px; }
 
     .layout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
     @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
@@ -66,13 +66,13 @@
       border-radius: 20px;
       padding: 18px;
     }
-    .card h2 { margin: 0 0 14px; font-size: 15px; letter-spacing: -0.02em; }
+    .card h2 { margin: 0 0 14px; font-size: 16.5px; letter-spacing: -0.02em; }
 
     .control { margin-bottom: 16px; }
     .control:last-child { margin-bottom: 0; }
     label {
       display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
-      margin-bottom: 7px; font-size: 13px; font-weight: 700;
+      margin-bottom: 7px; font-size: 14.5px; font-weight: 700;
     }
     label .val { color: var(--teal); font-weight: 800; }
     .inputRow { display: grid; grid-template-columns: 1fr 84px; gap: 10px; align-items: center; }
@@ -80,27 +80,27 @@
     input[type="number"] {
       width: 84px; padding: 8px 9px; border-radius: 10px;
       border: 1px solid var(--line); background: #0d1119; color: var(--ink);
-      font-weight: 800; font-size: 14px; text-align: right;
+      font-weight: 800; font-size: 15.5px; text-align: right;
       font-family: inherit; font-variant-numeric: tabular-nums;
     }
     input[type="number"]:focus, input[type="range"]:focus-visible { outline: 2px solid rgba(45,212,191,.5); outline-offset: 1px; }
-    .hint { color: var(--muted); font-size: 11.5px; line-height: 1.5; margin-top: 5px; }
+    .hint { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 5px; }
     .divider { border: 0; border-top: 1px dashed var(--line); margin: 16px 0; }
 
     /* 물음표 툴팁 */
     .tip {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 16px; height: 16px; border-radius: 50%;
+      width: 19px; height: 19px; border-radius: 50%;
       border: 1px solid var(--muted); color: var(--muted);
-      font-size: 10.5px; font-weight: 800; cursor: help;
+      font-size: 12px; font-weight: 800; cursor: help;
       position: relative; margin-left: 5px; user-select: none;
     }
     .tip:hover, .tip:focus, .tip.open { color: var(--teal); border-color: var(--teal); outline: none; }
     .tipBox {
       position: absolute; z-index: 20; top: 22px; left: 50%; transform: translateX(-50%);
-      width: min(290px, calc(100vw - 48px));
+      width: min(330px, calc(100vw - 48px));
       background: #0d1119; border: 1px solid var(--line); border-radius: 12px;
-      padding: 12px 14px; font-size: 12px; font-weight: 500; line-height: 1.65; color: var(--muted);
+      padding: 12px 14px; font-size: 13.5px; font-weight: 500; line-height: 1.65; color: var(--muted);
       box-shadow: 0 14px 34px rgba(0, 0, 0, .55);
       display: none; text-align: left; white-space: normal; cursor: auto;
     }
@@ -117,18 +117,18 @@
       border-radius: 20px; padding: 20px 20px 18px; margin-bottom: 14px;
     }
     .hero.blocked { border-color: rgba(248,113,113,.5); }
-    .hero .tag { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .hero .tag { font-size: 13.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
     .hero .big {
       font-size: clamp(40px, 9vw, 64px); font-weight: 900; letter-spacing: -0.04em; line-height: 1.05;
       margin: 6px 0 2px; color: var(--teal);
     }
     .hero.blocked .big { color: var(--red); font-size: clamp(30px, 7vw, 46px); }
-    .hero .amount { font-size: 17px; font-weight: 800; color: var(--ink); }
-    .hero .sub { color: var(--muted); font-size: 12.5px; line-height: 1.55; margin-top: 8px; }
+    .hero .amount { font-size: 18px; font-weight: 800; color: var(--ink); }
+    .hero .sub { color: var(--muted); font-size: 14px; line-height: 1.55; margin-top: 8px; }
 
     .warnings { display: grid; gap: 8px; margin-bottom: 14px; }
     .warn {
-      border-radius: 14px; padding: 11px 14px; font-size: 12.5px; line-height: 1.55; font-weight: 600;
+      border-radius: 14px; padding: 11px 14px; font-size: 14px; line-height: 1.55; font-weight: 600;
       border: 1px solid rgba(251,191,36,.4); background: rgba(251,191,36,.08); color: #fde68a;
     }
     .warn.critical { border-color: rgba(248,113,113,.5); background: rgba(248,113,113,.09); color: #fecaca; }
@@ -136,17 +136,17 @@
     .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
     @media (max-width: 640px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
     .metric { background: #0d1119; border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px; }
-    .metric .name { color: var(--muted); font-size: 11px; margin-bottom: 5px; letter-spacing: .02em; }
-    .metric .value { font-size: 19px; font-weight: 900; letter-spacing: -0.03em; }
-    .metric .extra { color: var(--muted); font-size: 11px; margin-top: 3px; }
+    .metric .name { color: var(--muted); font-size: 12.5px; margin-bottom: 5px; letter-spacing: .02em; }
+    .metric .value { font-size: 21px; font-weight: 900; letter-spacing: -0.03em; }
+    .metric .extra { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
     .good { color: var(--teal); }
     .bad { color: var(--red); }
     .gold { color: var(--gold); }
     .indigo { color: var(--indigo); }
 
     .chartCard { padding: 16px; margin-bottom: 14px; }
-    .chartCard h3 { margin: 0 0 4px; font-size: 14px; }
-    .chartCard .cap { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 10px; }
+    .chartCard h3 { margin: 0 0 4px; font-size: 15.5px; }
+    .chartCard .cap { color: var(--muted); font-size: 13.5px; line-height: 1.5; margin: 0 0 10px; }
     canvas { width: 100%; height: 320px; display: block; touch-action: pan-y; }
     @media (max-width: 640px) { canvas { height: 260px; } }
 
@@ -155,7 +155,7 @@
       margin: 0 0 6px; font-size: clamp(20px, 4vw, 28px); letter-spacing: -0.03em; font-weight: 900;
     }
     .secHead h2 b { background: linear-gradient(90deg, var(--gold), var(--red)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .secHead p { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; line-height: 1.6; max-width: 680px; }
+    .secHead p { margin: 0 0 16px; color: var(--muted); font-size: 15px; line-height: 1.6; max-width: 680px; }
     .plannerHead { margin-top: 34px; }
     .plannerHead h2 b { background: linear-gradient(90deg, var(--teal), var(--indigo)); -webkit-background-clip: text; background-clip: text; color: transparent; }
     .limitLayout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
@@ -163,26 +163,26 @@
     select {
       width: 100%; padding: 10px 12px; border-radius: 12px;
       border: 1px solid var(--line); background: #0d1119; color: var(--ink);
-      font-weight: 700; font-size: 13px; font-family: inherit;
+      font-weight: 700; font-size: 14.5px; font-family: inherit;
     }
     select:focus { outline: 2px solid rgba(45,212,191,.5); outline-offset: 1px; }
     .readout {
       border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px;
-      color: var(--muted); font-size: 12px; line-height: 1.55; margin-bottom: 10px;
+      color: var(--muted); font-size: 13.5px; line-height: 1.55; margin-bottom: 10px;
       font-variant-numeric: tabular-nums;
     }
     .readout b { color: var(--teal); }
 
     details.explain { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 0; overflow: hidden; }
     details.explain summary {
-      cursor: pointer; padding: 14px 16px; font-weight: 800; font-size: 13.5px; list-style: none;
+      cursor: pointer; padding: 14px 16px; font-weight: 800; font-size: 15px; list-style: none;
       display: flex; justify-content: space-between; align-items: center;
     }
     details.explain summary::after { content: "+"; color: var(--muted); font-size: 18px; font-weight: 700; }
     details.explain[open] summary::after { content: "–"; }
-    details.explain .body { padding: 0 16px 16px; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+    details.explain .body { padding: 0 16px 16px; color: var(--muted); font-size: 14px; line-height: 1.7; }
     details.explain .body code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
       background: #0d1119; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; color: var(--teal);
     }
     details.explain .body b { color: var(--ink); }
@@ -192,21 +192,21 @@
     .dropZone {
       border: 1.5px dashed var(--line); border-radius: 16px;
       padding: 26px 18px; text-align: center; cursor: pointer;
-      color: var(--muted); font-size: 13.5px; font-weight: 600; line-height: 1.6;
+      color: var(--muted); font-size: 15px; font-weight: 600; line-height: 1.6;
       transition: border-color .15s, background .15s;
     }
     .dropZone b { color: var(--teal); }
     .dropZone:hover, .dropZone.drag { border-color: var(--teal); background: rgba(45, 212, 191, .05); }
     .csvControls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
-    .csvControls label { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; }
+    .csvControls label { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; }
     input[type="date"] {
       padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line);
-      background: #0d1119; color: var(--ink); font-weight: 700; font-size: 13px;
+      background: #0d1119; color: var(--ink); font-weight: 700; font-size: 14.5px;
       font-family: inherit; color-scheme: dark;
     }
     .btn {
       padding: 9px 16px; border-radius: 10px; border: 1px solid transparent;
-      background: var(--teal); color: #04211c; font-weight: 800; font-size: 13px;
+      background: var(--teal); color: #04211c; font-weight: 800; font-size: 14.5px;
       font-family: inherit; cursor: pointer;
     }
     .btn:hover { filter: brightness(1.08); }
@@ -217,7 +217,7 @@
     #csvDiag { margin-top: 2px; }
     .warn.goodNote { border-color: rgba(45, 212, 191, .4); background: rgba(45, 212, 191, .07); color: #99f6e4; }
 
-    footer { margin-top: 26px; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
+    footer { margin-top: 26px; color: var(--muted); font-size: 13px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -625,7 +625,7 @@
       const X = m => x0 + (m / xMaxRatio) * (x1 - x0);
       const Y = v => y0 - ((Math.max(yMin, Math.min(yMax, v)) - yMin) / (yMax - yMin)) * (y0 - y1);
 
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = '12.5px ui-sans-serif, system-ui';
       ctx.strokeStyle = 'rgba(139,149,168,.14)';
       ctx.fillStyle = '#8b95a8';
       ctx.lineWidth = 1;
@@ -658,7 +658,7 @@
       ctx.strokeStyle = '#fbbf24';
       ctx.beginPath(); ctx.moveTo(x0, Y(-r.risk)); ctx.lineTo(x1, Y(-r.risk)); ctx.stroke();
       ctx.fillStyle = '#fbbf24';
-      ctx.font = '700 11px ui-sans-serif, system-ui';
+      ctx.font = '700 12.5px ui-sans-serif, system-ui';
       ctx.fillText(`허용손실 -${pct(r.risk)}`, x0 + 6, Y(-r.risk) - 6);
 
       const vline = (ratio, color, label, offset) => {
@@ -674,7 +674,7 @@
       ctx.setLineDash([]);
 
       ctx.fillStyle = '#8b95a8';
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = '12.5px ui-sans-serif, system-ui';
       ctx.fillText('자산 대비 진입금 비율 →', (x0 + x1) / 2 - 60, H - 8);
     }
 
@@ -699,7 +699,7 @@
       const X = R => x0 + (R / maxR) * (x1 - x0);
       const Y = g => y0 - ((g - minY) / (maxY - minY)) * (y0 - y1);
 
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = '12.5px ui-sans-serif, system-ui';
       ctx.strokeStyle = 'rgba(139,149,168,.14)';
       ctx.fillStyle = '#8b95a8';
       ctx.lineWidth = 1;
@@ -728,14 +728,14 @@
         ctx.beginPath(); ctx.moveTo(X(R), y0); ctx.lineTo(X(R), y1); ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = color;
-        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.font = '700 12.5px ui-sans-serif, system-ui';
         ctx.fillText(label, Math.min(X(R) + 6, x1 - 130), y1 + offset);
       };
       marker(r.logBreakEvenR, '#f87171', `로그 손익분기 ${r.logBreakEvenR.toFixed(2)}R`, 12);
       marker(r.rr, '#818cf8', `현재 ${r.rr.toFixed(2)}R`, 28);
 
       ctx.fillStyle = '#8b95a8';
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = '12.5px ui-sans-serif, system-ui';
       ctx.fillText('손익비 R →', (x0 + x1) / 2 - 26, H - 8);
     }
 
@@ -910,7 +910,7 @@
       minY -= padY; maxY += padY;
       const Y = g => y0 - ((g - minY) / (maxY - minY)) * (y0 - y1);
 
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = '12.5px ui-sans-serif, system-ui';
       ctx.strokeStyle = 'rgba(139,149,168,.14)';
       ctx.fillStyle = '#8b95a8';
       ctx.lineWidth = 1;
@@ -948,7 +948,7 @@
           const p = i / 4;
           ctx.fillText(`${(p * 100).toFixed(0)}%`, x1 + 6, Yp(p) + 4);
         }
-        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.font = '700 12.5px ui-sans-serif, system-ui';
         ctx.fillText('도달확률', x1 - 52, y1 + 12);
       }
 
@@ -967,7 +967,7 @@
           ctx.setLineDash([]);
           ctx.fillStyle = '#fbbf24';
           ctx.beginPath(); ctx.arc(X(bx), Y(bestG), 5, 0, Math.PI * 2); ctx.fill();
-          ctx.font = '700 11px ui-sans-serif, system-ui';
+          ctx.font = '700 12.5px ui-sans-serif, system-ui';
           ctx.fillText(`최적 목표 +${pct(bestX)}`, Math.min(X(bx) + 8, x1 - 110), Math.max(Y(bestG) - 10, y1 + 12));
         }
       } else {
@@ -979,7 +979,7 @@
           ctx.beginPath(); ctx.moveTo(X(m.winPct), y0); ctx.lineTo(X(m.winPct), y1); ctx.stroke();
           ctx.setLineDash([]);
           ctx.fillStyle = m.color;
-          ctx.font = '700 11px ui-sans-serif, system-ui';
+          ctx.font = '700 12.5px ui-sans-serif, system-ui';
           ctx.fillText(`${m.label} ${m.winPct.toFixed(0)}%`, Math.min(X(m.winPct) + 6, x1 - 92), y1 + 12 + idx * 15);
           if (Number.isFinite(g)) { ctx.beginPath(); ctx.arc(X(m.winPct), Y(g), 4, 0, Math.PI * 2); ctx.fill(); }
         });
@@ -995,12 +995,12 @@
       if (Number.isFinite(curG)) {
         ctx.fillStyle = '#e8edf5';
         ctx.beginPath(); ctx.arc(X(curWinPct), Y(curG), 5, 0, Math.PI * 2); ctx.fill();
-        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.font = '700 12.5px ui-sans-serif, system-ui';
         ctx.fillText(`현재 +${pct(s.winMove)}`, Math.min(X(curWinPct) + 8, x1 - 80), Math.min(Y(curG) + 20, y0 - 8));
       }
 
       ctx.fillStyle = '#8b95a8';
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = '12.5px ui-sans-serif, system-ui';
       ctx.fillText(`목표 수익률 → (레버리지 ${s.lev.toFixed(1)}x 고정)`, (x0 + x1) / 2 - 88, H - 8);
 
       // 캡션·요약 텍스트
@@ -1045,7 +1045,7 @@
       minY -= padY; maxY += padY;
       const Y = g => y0 - ((g - minY) / (maxY - minY)) * (y0 - y1);
 
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = '12.5px ui-sans-serif, system-ui';
       ctx.strokeStyle = 'rgba(139,149,168,.14)';
       ctx.fillStyle = '#8b95a8';
       ctx.lineWidth = 1;
@@ -1063,7 +1063,7 @@
         ctx.strokeStyle = 'rgba(248,113,113,.5)';
         ctx.beginPath(); ctx.moveTo(x0, Y(0)); ctx.lineTo(x1, Y(0)); ctx.stroke();
         ctx.fillStyle = '#f87171';
-        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.font = '700 12.5px ui-sans-serif, system-ui';
         ctx.fillText('0 = 복리 손익분기', x1 - 100, Y(0) - 6);
       }
 
@@ -1076,7 +1076,7 @@
         ctx.strokeStyle = '#fbbf24';
         ctx.beginPath(); ctx.moveTo(X(s.maxGood), y0); ctx.lineTo(X(s.maxGood), y1); ctx.stroke();
         ctx.fillStyle = '#fbbf24';
-        ctx.font = '700 11px ui-sans-serif, system-ui';
+        ctx.font = '700 12.5px ui-sans-serif, system-ui';
         ctx.fillText(`양수 한계 ${s.maxGood.toFixed(1)}x`, Math.min(X(s.maxGood) + 6, x1 - 100), y1 + 28);
       }
       ctx.strokeStyle = '#f87171';
@@ -1085,11 +1085,11 @@
       ctx.fillStyle = '#f87171';
       ctx.beginPath(); ctx.arc(X(s.bestL), Y(s.bestG), 5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#e8edf5';
-      ctx.font = '700 11px ui-sans-serif, system-ui';
+      ctx.font = '700 12.5px ui-sans-serif, system-ui';
       ctx.fillText(`최적 ${s.bestL.toFixed(1)}x`, Math.min(X(s.bestL) + 8, x1 - 70), Math.max(Y(s.bestG) - 10, y1 + 12));
 
       ctx.fillStyle = '#8b95a8';
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = '12.5px ui-sans-serif, system-ui';
       ctx.fillText('레버리지 →', (x0 + x1) / 2 - 26, H - 8);
 
       limitChartState = { ...s, x0, x1 };
