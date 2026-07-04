@@ -249,6 +249,11 @@
           <div class="csvControls">
             <label><span>이 날짜 진입분부터</span><input type="date" id="csvFrom" /></label>
             <label><span>본전 처리 |손익| ≤</span><input type="number" id="csvFlatThr" value="0.5" min="0" step="0.1" style="width:70px;" /><span>USDT</span></label>
+            <label><span>진입금 기준</span><select id="csvKellyMode" style="width:auto;padding:8px 10px;">
+              <option value="quarter">쿼터켈리 (보수)</option>
+              <option value="half" selected>하프켈리 (표준)</option>
+              <option value="full">풀켈리 (공격)</option>
+            </select></label>
             <button class="btn" id="csvApplyBtn">아래 계산기에 적용</button>
             <button class="btn ghost" id="csvShareBtn">📱 폰으로 보낼 링크 복사</button>
             <button class="btn ghost" id="csvClearBtn">기록 지우기</button>
@@ -1146,7 +1151,7 @@
       from: $('csvFrom'), apply: $('csvApplyBtn'), clear: $('csvClearBtn'),
       verdict: $('csvVerdict'), metrics: $('csvMetrics'), error: $('csvError'),
       holdMetrics: $('csvHoldMetrics'), diag: $('csvDiag'), flatThr: $('csvFlatThr'),
-      share: $('csvShareBtn'), savedNote: $('csvSavedNote'),
+      share: $('csvShareBtn'), savedNote: $('csvSavedNote'), kellyMode: $('csvKellyMode'),
     };
     let csvTrades = null; // 파싱된 전체 기록 (메모리에만 보관)
     let csvCurrent = null; // 날짜 필터 적용된 현재 통계
@@ -1315,6 +1320,7 @@
         return;
       }
       const fin = (x, f) => Number.isFinite(x) ? f(x) : '∞';
+      const km = kellyFactor(), kmName = { 0.25: '쿼터켈리', 0.5: '하프켈리', 1: '풀켈리' }[km];
       csvEls.metrics.innerHTML = [
         metricCard('거래 수', `${s.n}건`, '', `승 ${s.wins} · 패 ${s.losses} · 본전 ${s.flats}`),
         metricCard('승 / 무 / 패', `<span class="good">${pct(s.wins / s.n, 0)}</span> · ${pct(s.flats / s.n, 0)} · <span class="bad">${pct(s.losses / s.n, 0)}</span>`, '', `본전 제외 승률 ${pct(s.p, 1)}`),
@@ -1328,8 +1334,12 @@
       renderCsvDiag(csvDiagnostics(s.rows));
       const sample = s.n < 30 ? ` <b>표본이 ${s.n}건뿐이라 신뢰도가 낮습니다 — 참고용으로만 보세요.</b>` : '';
       csvEls.verdict.innerHTML = s.kelly > 0
-        ? `이 기록 기준 켈리 f = <b>+${(s.kelly * 100).toFixed(1)}%</b>. 실전 상한은 하프켈리 <b>${(s.kelly * 50).toFixed(1)}%</b>가 표준입니다. "아래 계산기에 적용"을 누르면 승률 ${pct(s.p, 0)}, 평균 수익률 +${pct(s.avgWinMove, 2)}, 평균 손실률 -${pct(s.avgLossMove, 2)}가 입력칸에 들어가고, 자산 대비 진입금 비율은 하프켈리(${(s.kelly * 50).toFixed(1)}%)로 설정됩니다.${sample}`
+        ? `이 기록 기준 켈리 f = <b>+${(s.kelly * 100).toFixed(1)}%</b>. 실전 상한은 하프켈리 <b>${(s.kelly * 50).toFixed(1)}%</b>가 표준입니다. "아래 계산기에 적용"을 누르면 승률 ${pct(s.p, 0)}, 평균 수익률 +${pct(s.avgWinMove, 2)}, 평균 손실률 -${pct(s.avgLossMove, 2)}가 입력칸에 들어가고, 자산 대비 진입금 비율은 <b>${kmName}(${(s.kelly * 100 * km).toFixed(1)}%)</b>로 설정됩니다.${km === 1 ? ' <b class="bad">주의: 풀켈리는 입력 통계가 정확하다는 전제의 이론값 — 추정 오차 한 번이면 과베팅이 됩니다.</b>' : ''}${sample}`
         : `이 기록 기준 켈리 f는 <b class="bad">${(s.kelly * 100).toFixed(1)}%</b> — 수학적으로는 베팅 금지 구간입니다. 승률(${pct(s.p, 0)}) 대비 손익비(${Number.isFinite(s.rr) ? s.rr.toFixed(2) : '∞'}R)가 부족합니다. 사이즈를 줄이는 것보다 <b>평균 손실을 줄이는 것</b>이 켈리를 양수로 만드는 가장 빠른 길입니다.${sample}`;
+    }
+
+    function kellyFactor() {
+      return { quarter: 0.25, half: 0.5, full: 1 }[csvEls.kellyMode.value] || 0.5;
     }
 
     function setPair(rangeEl, numEl, value) {
@@ -1351,8 +1361,8 @@
       setPair(els.lossMove, els.lossMoveNum, s.avgLossMove * 100);
       setPair(els.winMove, els.winMoveNum, s.avgWinMove * 100);
       if (s.worstLossMove > 0) setPair(els.worstMove, els.worstMoveNum, s.worstLossMove * 100);
-      // 자산 대비 진입금 비율은 실측 켈리의 절반(하프켈리)으로 — 실전 권장 상한
-      if (s.kelly > 0) setPair(els.lmargin, els.lmarginNum, s.kelly * 50);
+      // 자산 대비 진입금 비율은 선택한 켈리 기준으로 (기본 하프켈리 = 실전 권장 상한)
+      if (s.kelly > 0) setPair(els.lmargin, els.lmarginNum, s.kelly * 100 * kellyFactor());
       // 진입금 섹션: 승률(본전 제외) + 평균 변동률을 손절/목표폭으로
       setPair(els.win, els.winNum, s.p * 100);
       setPair(els.stop, els.stopNum, s.avgLossMove * 100);
@@ -1503,6 +1513,7 @@
     csvEls.zone.addEventListener('drop', e => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) loadCsvFile(f); });
     csvEls.from.addEventListener('change', () => { renderCsv(); saveCsvStore(); });
     csvEls.flatThr.addEventListener('input', () => { if (csvTrades) { renderCsv(); saveCsvStore(); } });
+    csvEls.kellyMode.addEventListener('change', () => { if (csvTrades) renderCsv(); });
     csvEls.apply.addEventListener('click', applyCsvToCalculators);
     csvEls.share.addEventListener('click', copyShareLink);
     csvEls.clear.addEventListener('click', () => {
